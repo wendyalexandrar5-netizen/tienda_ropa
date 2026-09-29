@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Carrito de Compras</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+
+    .producto-info, .carrito {
+      background: white;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+    }
+
+    select, input {
+      padding: 10px;
+      margin: 10px 0;
+      width: 100%;
+    }
+
+    button {
+      padding: 10px;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    .carrito-item {
+      border-top: 1px solid #ccc;
+      padding: 10px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-quitar {
+      background-color: #f44336;
+      padding: 5px 10px;
+      border: none;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #cambio {
+      font-weight: bold;
+      color: #333;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Carrito de Ventas</h2>
+
+  <div class="producto-info">
+    <label for="producto-id">Seleccionar Producto (ID):</label>
+    <select id="producto-id">
+      <option value="">--Seleccionar--</option>
+    </select>
+
+    <div id="info-seleccionada"></div>
+
+    <label for="cantidad">Cantidad a vender:</label>
+    <input type="number" id="cantidad" min="1">
+
+    <button onclick="agregarAlCarrito()">Agregar al carrito</button>
+  </div>
+
+  <div class="carrito">
+    <h3>Productos en el carrito</h3>
+    <div id="lista-carrito"></div>
+    <h3>Total: $<span id="total">0</span></h3>
+
+    <label for="pago">Pago recibido ($):</label>
+    <input type="number" id="pago" min="0">
+
+    <div id="cambio"></div>
+  </div>
+
+  <button onclick="finalizarVenta()">Finalizar Venta</button>
+  <button onclick="window.location.href='Principal.html'">Volver</button>
+
+  <script>
+    let productos = JSON.parse(localStorage.getItem('productos')) || [];
+    let carrito = [];
+
+    const select = document.getElementById('producto-id');
+    const info = document.getElementById('info-seleccionada');
+    const listaCarrito = document.getElementById('lista-carrito');
+    const totalSpan = document.getElementById('total');
+    const cambioDiv = document.getElementById('cambio');
+    const pagoInput = document.getElementById('pago');
+
+    productos.forEach(p => {
+      const option = document.createElement('option');
+      option.value = p.id;
+      option.textContent = `ID: ${p.id} - ${p.color} (${p.talla})`;
+      select.appendChild(option);
+    });
+
+    select.addEventListener('change', () => {
+      const id = parseInt(select.value);
+      const producto = productos.find(p => p.id === id);
+      if (producto) {
+        info.innerHTML = `
+          <p><strong>Color:</strong> ${producto.color}</p>
+          <p><strong>Talla:</strong> ${producto.talla}</p>
+          <p><strong>Precio:</strong> $${producto.precio}</p>
+          <p><strong>Stock disponible:</strong> ${producto.cantidad}</p>
+        `;
+        document.getElementById('cantidad').max = producto.cantidad;
+      } else {
+        info.innerHTML = '';
+      }
+    });
+
+    function agregarAlCarrito() {
+      const id = parseInt(select.value);
+      const cantidad = parseInt(document.getElementById('cantidad').value);
+
+      if (!id || cantidad <= 0) {
+        alert("Selecciona un producto y una cantidad válida.");
+        return;
+      }
+
+      const producto = productos.find(p => p.id === id);
+
+      if (cantidad > producto.cantidad) {
+        alert("Cantidad solicitada excede el stock disponible.");
+        return;
+      }
+
+      const enCarrito = carrito.find(p => p.id === id);
+      if (enCarrito) {
+        enCarrito.cantidad += cantidad;
+      } else {
+        carrito.push({
+          id,
+          cantidad,
+          talla: producto.talla,
+          color: producto.color,
+          precio: producto.precio
+        });
+      }
+
+      mostrarCarrito();
+    }
+
+    function mostrarCarrito() {
+      listaCarrito.innerHTML = '';
+      let total = 0;
+
+      carrito.forEach(item => {
+        const subtotal = item.precio * item.cantidad;
+        total += subtotal;
+
+        const div = document.createElement('div');
+        div.className = 'carrito-item';
+        div.innerHTML = `
+          <div>
+            <p><strong>ID:</strong> ${item.id}</p>
+            <p>${item.color} (${item.talla}) x ${item.cantidad} = $${subtotal}</p>
+          </div>
+          <button class="btn-quitar" onclick="quitar(${item.id})">Quitar</button>
+        `;
+        listaCarrito.appendChild(div);
+      });
+
+      totalSpan.textContent = total;
+      actualizarCambio();
+    }
+
+    function quitar(id) {
+      carrito = carrito.filter(p => p.id !== id);
+      mostrarCarrito();
+    }
+
+    function actualizarCambio() {
+      const pago = parseFloat(pagoInput.value);
+      const total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
+
+      if (!isNaN(pago) && pago >= total) {
+        const cambio = pago - total;
+        cambioDiv.textContent = `Cambio a devolver: $${cambio}`;
+      } else {
+        cambioDiv.textContent = '';
+      }
+    }
+
+    pagoInput.addEventListener('input', actualizarCambio);
+
+    function finalizarVenta() {
+      const pago = parseFloat(pagoInput.value);
+      const total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
+
+      if (pago < total) {
+        alert("El pago es insuficiente.");
+        return;
+      }
+
+      carrito.forEach(item => {
+        const producto = productos.find(p => p.id === item.id);
+        producto.cantidad -= item.cantidad;
+      });
+
+      localStorage.setItem('productos', JSON.stringify(productos));
+
+      const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
+      const fechaActual = new Date().toLocaleString();
+
+      ventas.push({
+        productos: carrito,
+        total,
+        pago,
+        cambio: pago - total,
+        fecha: fechaActual
+      });
+
+      localStorage.setItem('ventas', JSON.stringify(ventas));
+
+      const cambio = pago - total;
+      cambioDiv.textContent = `Cambio a devolver: $${cambio}`;
+
+      alert("Venta realizada con éxito");
+
+      carrito = [];
+      mostrarCarrito();
+      info.innerHTML = '';
+      select.value = '';
+      document.getElementById('cantidad').value = '';
+      pagoInput.value = '';
+    }
+  </script>
+
+</body>
+</html>
+

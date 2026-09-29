@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Editar Producto</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+
+    .contenedor {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    input {
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      color: white;
+      font-size: 16px;
+    }
+
+    .btn-guardar {
+      background-color: #4CAF50;
+    }
+
+    .btn-volver {
+      background-color: #888;
+      margin-top: 10px;
+    }
+
+    #mensaje {
+      color: green;
+      font-weight: bold;
+      margin-top: 10px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Editar Producto</h2>
+
+  <div class="contenedor">
+    <label>Selecciona un producto (por ID):</label>
+    <select id="seleccionar-id">
+      <option value="">-- Selecciona un producto --</option>
+    </select>
+
+    <label>Cantidad:</label>
+    <input type="number" id="cantidad">
+
+    <label>Talla:</label>
+    <input type="text" id="talla">
+
+    <label>Color:</label>
+    <input type="text" id="color">
+
+    <label>Precio:</label>
+    <input type="number" id="precio">
+
+    <button class="btn btn-guardar" onclick="guardarCambios()">Guardar cambios</button>
+    <button class="btn btn-volver" onclick="window.location.href='producto.html'">Volver</button>
+
+    <div id="mensaje">¡Cambios guardados!</div>
+  </div>
+
+  <script>
+    let productos = JSON.parse(localStorage.getItem('productos')) || [];
+
+    const select = document.getElementById('seleccionar-id');
+    const cantidadInput = document.getElementById('cantidad');
+    const tallaInput = document.getElementById('talla');
+    const colorInput = document.getElementById('color');
+    const precioInput = document.getElementById('precio');
+    const mensaje = document.getElementById('mensaje');
+
+    let indexEditar = -1;
+
+    // Cargar opciones con los IDs disponibles
+    productos.forEach(p => {
+      const option = document.createElement('option');
+      option.value = p.id;
+      option.textContent = `ID: ${p.id}`;
+      select.appendChild(option);
+    });
+
+    select.addEventListener('change', () => {
+      const idSeleccionado = parseInt(select.value);
+      const producto = productos.find((p, index) => {
+        if (p.id === idSeleccionado) {
+          indexEditar = index;
+          return true;
+        }
+        return false;
+      });
+
+      if (producto) {
+        cantidadInput.value = producto.cantidad;
+        tallaInput.value = producto.talla;
+        colorInput.value = producto.color;
+        precioInput.value = producto.precio;
+        mensaje.style.display = 'none';
+      } else {
+        cantidadInput.value = '';
+        tallaInput.value = '';
+        colorInput.value = '';
+        precioInput.value = '';
+        indexEditar = -1;
+        mensaje.style.display = 'none';
+      }
+    });
+
+    function guardarCambios() {
+      if (indexEditar === -1) {
+        alert("Selecciona un producto válido para editar.");
+        return;
+      }
+
+      productos[indexEditar].cantidad = cantidadInput.value;
+      productos[indexEditar].talla = tallaInput.value;
+      productos[indexEditar].color = colorInput.value;
+      productos[indexEditar].precio = precioInput.value;
+
+      localStorage.setItem('productos', JSON.stringify(productos));
+      mensaje.style.display = 'block';
+    }
+  </script>
+
+</body>
+</html>
+

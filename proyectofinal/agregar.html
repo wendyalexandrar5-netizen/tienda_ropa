@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Agregar Producto</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    input, select {
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    .submit {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Agregar nuevo producto</h2>
+
+  <form id="form-producto">
+    <label>ID del producto:</label>
+    <input type="number" id="id" required>
+
+    <label>Imagen:</label>
+    <input type="file" accept="image/*" id="imagen" required>
+
+    <label>Cantidad:</label>
+    <input type="number" id="cantidad" required>
+
+    <label>Talla:</label>
+    <input type="text" id="talla" required>
+
+    <label>Color:</label>
+    <input type="text" id="color" required>
+
+    <label>Precio:</label>
+    <input type="number" id="precio" required>
+
+    <button class="submit" type="submit">Agregar</button>
+  </form>
+
+  <script>
+    document.getElementById('form-producto').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const fileInput = document.getElementById('imagen');
+      const reader = new FileReader();
+
+      reader.onload = function () {
+        const productos = JSON.parse(localStorage.getItem('productos')) || [];
+
+        const idIngresado = parseInt(document.getElementById('id').value);
+
+        // Validar si el ID ya existe
+        const idExiste = productos.some(p => p.id === idIngresado);
+        if (idExiste) {
+          alert("El ID ingresado ya existe. Por favor, elige otro.");
+          return;
+        }
+
+        const producto = {
+          id: idIngresado,
+          imagen: reader.result,
+          cantidad: document.getElementById('cantidad').value,
+          talla: document.getElementById('talla').value,
+          color: document.getElementById('color').value,
+          precio: document.getElementById('precio').value
+        };
+
+        productos.push(producto);
+        localStorage.setItem('productos', JSON.stringify(productos));
+
+        window.location.href = 'producto.html';
+      };
+
+      reader.readAsDataURL(fileInput.files[0]);
+    });
+  </script>
+
+</body>
+</html>
+
+

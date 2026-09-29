@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Página Principal</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    .logo {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .usuario-salir {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .nombre-usuario {
+      font-weight: bold;
+      color: #333;
+      background-color: #e0e0e0;
+      padding: 0.4rem 0.8rem;
+      border-radius: 1rem;
+    }
+
+    .salir {
+      background-color: #f88;
+      padding: 0.4rem 0.8rem;
+      border-radius: 1rem;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+
+    .salir:hover {
+      background-color: #e66;
+    }
+
+    .separador {
+      position: absolute;
+      top: 80px;
+      width: 100%;
+      height: 2px;
+      background-color: #ccc;
+    }
+
+    .botones {
+      margin-top: 100px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      justify-items: center;
+    }
+
+    .boton {
+      background-color: white;
+      text-align: center;
+      width: 12rem;
+      height: 3.5rem;
+      border-radius: 1.5rem;
+      position: relative;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: black;
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.3s;
+      border: none;
+    }
+
+    .boton svg {
+      position: absolute;
+      left: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 25px;
+      height: 25px;
+      fill: #000;
+    }
+
+    .boton .background {
+      background-color: #58bc82;
+      width: 25%;
+      height: 3rem;
+      border-radius: 1.25rem;
+      position: absolute;
+      top: 0.1rem;
+      left: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: width 0.5s ease;
+      z-index: 1;
+    }
+
+    .boton:hover .background {
+      width: 100%;
+    }
+
+    .boton p {
+      position: relative;
+      z-index: 2;
+      margin-left: 2rem;
+      line-height: 3rem;
+    }
+
+    .boton:hover {
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Logo -->
+  <div class="logo">
+    <img src="imagenes/firecatW.jpg" alt="Logo" />
+  </div>
+
+  <!-- Usuario y botón salir -->
+  <div class="usuario-salir">
+    <div class="nombre-usuario" id="nombreUsuario">Juan Pérez</div>
+    <button class="salir" onclick="salir()">Salir</button>
+  </div>
+
+  <!-- Separador -->
+  <div class="separador"></div>
+
+  <!-- Botones -->
+  <div class="botones">
+    <!-- Botón Usuarios -->
+    <button class="boton" onclick="window.location.href='usuarios.html'">
+      <div class="background"></div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+        <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z"/>
+        <path d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"/>
+      </svg>
+      <p>Usuarios</p>
+    </button>
+
+    <!-- Botón Productos -->
+    <button class="boton" onclick="window.location.href='producto.html'">
+      <div class="background"></div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+        <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z"/>
+        <path d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"/>
+      </svg>
+      <p>Productos</p>
+    </button>
+
+    <!-- Botón venta -->
+    <button class="boton" onclick="window.location.href='carrito.html'">
+      <div class="background"></div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+        <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z"/>
+        <path d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"/>
+      </svg>
+      <p>Carrito</p>
+    </button>
+
+    <!-- Botón Editor -->
+    <button class="boton" onclick="window.location.href='ventas.html'">
+      <div class="background"></div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+        <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z"/>
+        <path d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"/>
+      </svg>
+      <p>Ventas</p>
+    </button>
+
+    <button class="boton" onclick="window.location.href='caja.html'">
+      <div class="background"></div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+        <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z"/>
+        <path d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"/>
+      </svg>
+      <p>Caja</p>
+    </button>
+  </div>
+
+  <!-- Script para mostrar nombre y salir -->
+  <script>
+    const nombre = localStorage.getItem("nombre") || "Juan";
+    const apellido = localStorage.getItem("apellido") || "Pérez";
+    document.getElementById("nombreUsuario").textContent = `${nombre} ${apellido}`;
+
+    function salir() {
+      localStorage.removeItem("nombre");
+      localStorage.removeItem("apellido");
+      window.location.href = 'login.html';
+    }
+  </script>
+
+</body>
+</html>
