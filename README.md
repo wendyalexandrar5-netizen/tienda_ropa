@@ -134,7 +134,7 @@ verificación de JWT, validación de imágenes (MIME real + re-codificación),
 precios y stock siempre desde la BD, rate limiting, manejo seguro de errores,
 secretos solo en `.env`.
 
-Auditoría del proyecto original, controles y **resultados de las 161 pruebas**:
+Auditoría del proyecto original, controles y **resultados de las 163 pruebas**:
 **[docs/SEGURIDAD.md](docs/SEGURIDAD.md)**.
 
 ## 7. API
@@ -262,7 +262,7 @@ scripts/local/run-tests.sh --reset     # reconstruye la BD y ejecuta todo
 |---|---|
 | RLS y reglas de negocio (`supabase/tests/rls_test.sql`) | 39/39 |
 | JWT ES256/RS256/HS256 (`tests/unit/jwt_verifier_test.php`) | 14/14 |
-| Seguridad API/web/Data API (`tests/security/api_security_test.php`) | 82/82 |
+| Seguridad API/web/Data API (`tests/security/api_security_test.php`) | 84/84 |
 | E2E en navegador (`tests/e2e/flujo_completo.js`) | 26/26 |
 
 ## 14. Futuro desarrollo móvil

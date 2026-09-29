@@ -320,6 +320,12 @@ $page = http('GET', "$BASE/login", ['jar' => $jar, 'accept' => 'text/html']);
 preg_match('/name="_csrf" value="([a-f0-9]{64})"/', $page['body'], $m);
 $r = http('POST', "$BASE/login", ['jar' => $jar, 'accept' => 'text/html', 'form' => http_build_query(['email' => 'andres@firecat.test', 'password' => $PASS, '_csrf' => $m[1] ?? '', 'next' => '//evil.example.com/phish'])]);
 check('Redirección', 'next=//evil.example.com no redirige fuera del sitio', !str_contains($r['headers'], 'evil.example.com'));
+$home = http('GET', "$BASE/cuenta", ['jar' => $jar, 'accept' => 'text/html']);
+preg_match('/name="_csrf" value="([a-f0-9]{64})"/', $home['body'], $m);
+$r = http('POST', "$BASE/cuenta/perfil", ['jar' => $jar, 'accept' => 'text/html', 'form' => http_build_query(['nombre' => '<b>', 'apellido' => 'X', '_csrf' => $m[1] ?? '', '_back' => '//evil.example.com'])]);
+check('Redirección', '_back=//evil.example.com tras error de validación no sale del sitio', $r['status'] === 303 && !str_contains($r['headers'], 'evil.example.com'));
+$r = http('POST', "$BASE/cuenta/perfil", ['jar' => $jar, 'accept' => 'text/html', 'form' => http_build_query(['nombre' => '<b>', 'apellido' => 'X', '_csrf' => $m[1] ?? '', '_back' => '/cuenta'])]);
+check('Redirección', 'Error de validación vuelve al formulario aunque no haya Referer', (bool) preg_match('#location: /cuenta\r?\n#', $r['headers']));
 @unlink($jar);
 
 // ----------------------------------------------------------------------------

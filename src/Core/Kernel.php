@@ -147,17 +147,35 @@ final class Kernel
         return Response::html($html, $e->status);
     }
 
+    /**
+     * Página a la que se vuelve tras un error en un formulario web:
+     *   1) campo oculto _back (lo añade csrf_field(), no depende del Referer)
+     *   2) cabecera Referer del mismo sitio
+     *   3) la página de inicio
+     * Solo se aceptan rutas internas.
+     */
     private function backUrl(Request $request): string
     {
-        $referer = $request->header('referer') ?? '';
-        $path = parse_url($referer, PHP_URL_PATH);
-        $host = parse_url($referer, PHP_URL_HOST);
-        $appHost = parse_url($this->c->config->appUrl, PHP_URL_HOST);
-        if (is_string($path) && ($host === null || $host === $appHost || $host === ($request->header('host') ? explode(':', (string) $request->header('host'))[0] : null))) {
-            $query = parse_url($referer, PHP_URL_QUERY);
-            return $path . (is_string($query) ? '?' . $query : '');
+        $isInternal = static fn (string $p): bool => (bool) preg_match('#^/(?![/\\\\])[^\s]*$#', $p);
+
+        $back = $request->post['_back'] ?? null;
+        if (is_string($back) && $back !== '' && $isInternal($back)) {
+            return $back;
         }
-        return $request->path;
+
+        $referer = $request->header('referer') ?? '';
+        if ($referer !== '') {
+            $path = parse_url($referer, PHP_URL_PATH);
+            $host = parse_url($referer, PHP_URL_HOST);
+            $sameHost = $host === null
+                || $host === parse_url($this->c->config->appUrl, PHP_URL_HOST)
+                || $host === explode(':', (string) $request->header('host'))[0];
+            if (is_string($path) && $path !== '' && $sameHost && $isInternal($path)) {
+                $query = parse_url($referer, PHP_URL_QUERY);
+                return $path . (is_string($query) ? '?' . $query : '');
+            }
+        }
+        return '/';
     }
 
     private function withSecurityHeaders(Request $request, Response $response): Response

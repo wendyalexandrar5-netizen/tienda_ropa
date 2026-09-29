@@ -51,7 +51,11 @@ function csrf_token(): string
 
 function csrf_field(): string
 {
-    return '<input type="hidden" name="_csrf" value="' . e(csrf_token()) . '">';
+    // _back: ruta actual, para volver al formulario si el servidor rechaza los datos.
+    $back = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    $query = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY);
+    return '<input type="hidden" name="_csrf" value="' . e(csrf_token()) . '">'
+        . '<input type="hidden" name="_back" value="' . e($back . ($query ? '?' . $query : '')) . '">';
 }
 
 function app(?App\Core\Container $set = null): App\Core\Container

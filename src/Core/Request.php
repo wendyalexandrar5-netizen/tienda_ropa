@@ -136,7 +136,7 @@ final class Request
             return $this->jsonBody;
         }
         $data = $this->post;
-        unset($data['_csrf'], $data['_method']);
+        unset($data['_csrf'], $data['_method'], $data['_back']);
         return $data;
     }
 

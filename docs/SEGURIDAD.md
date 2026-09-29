@@ -85,7 +85,7 @@ Supabase Auth (GoTrue v2.180) + PostgREST v12 reales en local.
 |---|---|---|
 | RLS y reglas de negocio en la BD | `supabase/tests/rls_test.sql` | **39/39** |
 | Verificación de JWT (ES256/RS256/HS256 y ataques) | `tests/unit/jwt_verifier_test.php` | **14/14** |
-| Seguridad de API, web y Data API de Supabase | `tests/security/api_security_test.php` | **82/82** |
+| Seguridad de API, web y Data API de Supabase | `tests/security/api_security_test.php` | **84/84** |
 | Flujos E2E en Chromium (cliente y admin) | `tests/e2e/flujo_completo.js` | **26/26** |
 
 Además se verificó manualmente el flujo de **recuperación de contraseña** con
@@ -125,7 +125,7 @@ reportes disponibles, funciones internas no invocables.
 | 10 | Rol cliente | GET /api/admin/users → 403 | ✅ OK |
 | 11 | Rol cliente | GET /api/admin/orders → 403 | ✅ OK |
 | 12 | Rol cliente | POST /api/admin/products → 403 | ✅ OK |
-| 13 | Rol cliente | PUT /api/admin/orders/23e92798-b9a9-4268-9f97-c03d36d66b91/status → 403 | ✅ OK |
+| 13 | Rol cliente | PUT /api/admin/orders/f57ce529-1b7e-47c8-99a3-3a54f830f8c0/status → 403 | ✅ OK |
 | 14 | Rol cliente | POST /api/admin/inventory/adjust → 403 | ✅ OK |
 | 15 | Rol cliente | PUT /api/admin/settings → 403 | ✅ OK |
 | 16 | Rol cliente | GET /api/admin/reports/sales → 403 | ✅ OK |
@@ -187,14 +187,16 @@ reportes disponibles, funciones internas no invocables.
 | 72 | Archivos | Rechaza PNG falso con código | ✅ OK |
 | 73 | Rate limiting | Fuerza bruta de login bloqueada con 429 | ✅ OK |
 | 74 | Redirección | next=//evil.example.com no redirige fuera del sitio | ✅ OK |
-| 75 | Data API | anon no puede leer pedidos | ✅ OK |
-| 76 | Data API | anon no puede leer perfiles | ✅ OK |
-| 77 | Data API | Cliente solo recibe sus pedidos | ✅ OK |
-| 78 | Data API | Cliente no puede modificar precios (PATCH → 0 filas por RLS) | ✅ OK |
-| 79 | Data API | Cliente no puede modificar stock (PATCH) | ✅ OK |
-| 80 | Data API | Cliente no puede modificar pedidos | ✅ OK |
-| 81 | Data API | Cliente no puede invocar RPC administrativas | ✅ OK |
-| 82 | Data API | anon no ve productos en borrador | ✅ OK |
+| 75 | Redirección | _back=//evil.example.com tras error de validación no sale del sitio | ✅ OK |
+| 76 | Redirección | Error de validación vuelve al formulario aunque no haya Referer | ✅ OK |
+| 77 | Data API | anon no puede leer pedidos | ✅ OK |
+| 78 | Data API | anon no puede leer perfiles | ✅ OK |
+| 79 | Data API | Cliente solo recibe sus pedidos | ✅ OK |
+| 80 | Data API | Cliente no puede modificar precios (PATCH → 0 filas por RLS) | ✅ OK |
+| 81 | Data API | Cliente no puede modificar stock (PATCH) | ✅ OK |
+| 82 | Data API | Cliente no puede modificar pedidos | ✅ OK |
+| 83 | Data API | Cliente no puede invocar RPC administrativas | ✅ OK |
+| 84 | Data API | anon no ve productos en borrador | ✅ OK |
 
 ### 4.3 Errores encontrados y corregidos durante las pruebas
 
@@ -206,6 +208,7 @@ reportes disponibles, funciones internas no invocables.
 | Inputs `min="1" step="100"` invalidaban precios como 80.000 en el navegador | `step="1"` |
 | En escritorio el fondo del menú móvil ocupaba una celda del grid del panel | `display:none` fuera de móvil |
 | `ini_set('session.sid_length')` deprecado en PHP 8.4 rompía la API | Eliminado |
+| (Revisión final) Si el navegador no enviaba `Referer`, un error de validación en un formulario web redirigía al inicio y se perdía el formulario | Campo oculto `_back` (ruta interna validada) añadido por `csrf_field()`; se rechazan `//…` y `/\…` (pruebas 83–84) |
 
 ## 5. Recomendaciones para producción
 

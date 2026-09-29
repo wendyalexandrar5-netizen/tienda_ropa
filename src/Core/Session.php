@@ -124,7 +124,7 @@ final class Session
     /** Conserva datos de un formulario tras un error de validación. */
     public function flashOld(array $data): void
     {
-        unset($data['password'], $data['password_confirmacion'], $data['password_actual'], $data['_csrf']);
+        unset($data['password'], $data['password_confirmacion'], $data['password_actual'], $data['_csrf'], $data['_back']);
         $this->set('_old', $data);
     }
 
