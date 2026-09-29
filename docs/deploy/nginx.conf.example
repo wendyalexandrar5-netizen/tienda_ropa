@@ -1,0 +1,22 @@
+# Ejemplo de configuración Nginx + PHP-FPM para FIRE CAT
+server {
+    listen 80;
+    server_name tu-dominio.com;
+    root /var/www/tienda_ropa/public;      # SOLO la carpeta public/ es accesible
+    index index.php;
+
+    client_max_body_size 6m;                # imágenes de hasta 5 MB
+
+    location ~ /\.  { deny all; }           # .env, .git, .htaccess
+    location ^~ /uploads/ {                 # nunca ejecutar scripts subidos
+        location ~ \.(php|phtml|phar)$ { deny all; }
+    }
+    location / { try_files $uri /index.php$is_args$args; }
+
+    location = /index.php {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+    }
+    location ~ \.php$ { return 404; }       # ningún otro PHP es ejecutable
+}

@@ -1,0 +1,8 @@
+# Protección para hostings donde no se puede cambiar el document root:
+# redirige todo a public/ y nunca expone src/, views/, supabase/, .env, etc.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule "(^|/)\." - [F]
+  RewriteRule ^(src|views|supabase|scripts|tests|storage|docs)(/|$) - [F]
+  RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

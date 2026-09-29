@@ -1,0 +1,27 @@
+# Credenciales y configuración local
+.env
+.env.*
+!.env.example
+
+# Entorno local (binarios de Supabase Auth, logs, BD)
+.local/
+storage/cache/*
+!storage/cache/.gitkeep
+storage/logs/*
+!storage/logs/.gitkeep
+
+# Imágenes subidas en modo STORAGE_DRIVER=local
+public/uploads/productos/
+
+# Dependencias / herramientas
+/vendor/
+/node_modules/
+supabase/.temp/
+supabase/.branches/
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
