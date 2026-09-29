@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Eliminar Producto</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+
+    .contenedor {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    select, button {
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+    }
+
+    .btn-eliminar {
+      background-color: #f44336;
+    }
+
+    .btn-volver {
+      background-color: #888;
+    }
+
+    .producto-info {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      background: #f9f9f9;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .producto-info img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 5px;
+    }
+
+    #mensaje {
+      color: green;
+      font-weight: bold;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Eliminar Producto</h2>
+
+  <div class="contenedor">
+    <label for="seleccionar-id">Selecciona un producto (por ID):</label>
+    <select id="seleccionar-id">
+      <option value="">-- Selecciona un ID --</option>
+    </select>
+
+    <div id="detalle-producto" class="producto-info" style="display: none;"></div>
+
+    <button class="btn btn-eliminar" onclick="eliminarProducto()">Eliminar</button>
+     <button class="btn btn-volver" onclick="window.location.href='producto.html'">Volver</button>
+
+    <div id="mensaje">¡Producto eliminado!</div>
+  </div>
+
+  <script>
+    let productos = JSON.parse(localStorage.getItem('productos')) || [];
+    const select = document.getElementById('seleccionar-id');
+    const detalle = document.getElementById('detalle-producto');
+    const mensaje = document.getElementById('mensaje');
+    let indexSeleccionado = -1;
+
+    function actualizarSelector() {
+      select.innerHTML = '<option value="">-- Selecciona un ID --</option>';
+      productos.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = `ID: ${p.id}`;
+        select.appendChild(option);
+      });
+    }
+
+    select.addEventListener('change', () => {
+      const id = parseInt(select.value);
+      const producto = productos.find((p, index) => {
+        if (p.id === id) {
+          indexSeleccionado = index;
+          return true;
+        }
+        return false;
+      });
+
+      if (producto) {
+        detalle.innerHTML = `
+          <img src="${producto.imagen}" alt="Imagen del producto">
+          <p><strong>Cantidad:</strong> ${producto.cantidad}</p>
+          <p><strong>Talla:</strong> ${producto.talla}</p>
+          <p><strong>Color:</strong> ${producto.color}</p>
+          <p><strong>Precio:</strong> $${producto.precio}</p>
+        `;
+        detalle.style.display = "block";
+        mensaje.style.display = "none";
+      } else {
+        detalle.style.display = "none";
+        indexSeleccionado = -1;
+      }
+    });
+
+    function eliminarProducto() {
+      if (indexSeleccionado === -1) {
+        alert("Selecciona un producto válido para eliminar.");
+        return;
+      }
+
+      if (confirm("¿Estás seguro de eliminar este producto?")) {
+        productos.splice(indexSeleccionado, 1);
+        localStorage.setItem('productos', JSON.stringify(productos));
+        mensaje.style.display = "block";
+        detalle.style.display = "none";
+        indexSeleccionado = -1;
+        actualizarSelector();
+      }
+    }
+
+    actualizarSelector();
+  </script>
+
+</body>
+</html>
