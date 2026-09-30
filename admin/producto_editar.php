@@ -83,6 +83,7 @@ $variantes = filas('SELECT v.*, t.nombre AS talla, c.nombre AS color, c.codigo_h
                     FROM variantes_producto v JOIN tallas t ON t.id = v.talla_id JOIN colores c ON c.id = v.color_id
                     WHERE v.producto_id = ? ORDER BY c.nombre, t.orden', [$id]);
 $umbral = umbral_stock_bajo();
+$costoFab = costos_fabricacion([$id])[$id] ?? null;
 
 $titulo = 'Editar: ' . $producto['nombre'];
 $seccion = 'productos';
@@ -132,6 +133,18 @@ require __DIR__ . '/includes/header.php';
                     <?php if (!$variantes): ?><tr><td colspan="4" class="text-center text-muted-fc py-4">Sin variantes: el producto no se puede comprar todavía.</td></tr><?php endif; ?>
                     </tbody>
                 </table>
+            </div>
+        </div>
+        <div class="tarjeta-admin pregunta mb-3">
+            <div class="cuerpo d-flex justify-content-between align-items-center gap-2">
+                <?php if ($costoFab !== null): $mg = (float) $producto['precio'] - $costoFab; ?>
+                    <div><div class="p">Costo de fabricación</div><div class="r"><?= precio($costoFab) ?></div>
+                        <div class="small <?= $mg < 0 ? 'cifra-negativa' : 'cifra-positiva' ?>">Margen <?= precio($mg) ?> (<?= porcentaje((float) $producto['precio'] > 0 ? $mg / (float) $producto['precio'] * 100 : 0) ?>)</div></div>
+                    <a class="btn btn-sm btn-light" href="<?= url('admin/ficha_editar.php', ['producto' => $id]) ?>"><i class="bi bi-card-checklist me-1"></i>Ficha técnica</a>
+                <?php else: ?>
+                    <div><div class="p">Costo de fabricación</div><div class="small text-muted-fc">Sin ficha técnica: las ventas no tendrán costo.</div></div>
+                    <a class="btn btn-sm btn-fc" href="<?= url('admin/ficha_editar.php', ['producto' => $id]) ?>">Crear ficha</a>
+                <?php endif; ?>
             </div>
         </div>
         <form method="post" action="<?= url('admin/producto_editar.php') ?>" class="tarjeta-admin">

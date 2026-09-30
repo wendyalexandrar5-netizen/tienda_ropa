@@ -103,13 +103,15 @@ function crear_pedido(int $usuarioId, array $entrega): array
         $codigo   = sprintf('FC-%06d', $pedidoId);
         consulta('UPDATE pedidos SET codigo = ? WHERE id = ?', [$codigo, $pedidoId]);
 
+        // Costo de fabricación vigente (ficha técnica): se congela junto al precio para calcular la utilidad.
+        $costos = costos_fabricacion(array_column($items, 'producto_id'));
         $insDetalle = $pdo->prepare('INSERT INTO pedido_detalle
-            (pedido_id, producto_id, variante_id, nombre_producto, talla, color, cantidad, precio_unitario, subtotal)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            (pedido_id, producto_id, variante_id, nombre_producto, talla, color, cantidad, precio_unitario, costo_unitario, subtotal)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($items as $i) {
             $insDetalle->execute([
                 $pedidoId, $i['producto_id'], $i['variante_id'], $i['nombre'], $i['talla'], $i['color'],
-                $i['cantidad'], $i['precio'], (float) $i['precio'] * (int) $i['cantidad'],
+                $i['cantidad'], $i['precio'], $costos[(int) $i['producto_id']] ?? null, (float) $i['precio'] * (int) $i['cantidad'],
             ]);
             mover_stock((int) $i['variante_id'], 'venta', -(int) $i['cantidad'], "Venta pedido $codigo", $usuarioId, $pedidoId);
         }

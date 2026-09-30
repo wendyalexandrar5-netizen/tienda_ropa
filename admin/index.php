@@ -52,6 +52,11 @@ $stockBajo = filas("SELECT v.id, v.sku, v.stock, p.id AS producto_id, p.nombre, 
 $ultimos = filas("SELECT p.id, p.codigo, p.total, p.estado, p.fecha_pedido, CONCAT(u.nombre, ' ', u.apellido) AS cliente
                   FROM pedidos p JOIN usuarios u ON u.id = p.usuario_id ORDER BY p.fecha_pedido DESC LIMIT 6");
 
+$finMes = resumen_financiero(date('Y-m-01'), date('Y-m-d'));
+$fabrica = fila("SELECT (SELECT COUNT(*) FROM materiales WHERE estado = 'activo' AND stock <= stock_minimo) AS bajos,
+                        (SELECT COALESCE(SUM(stock * costo_promedio), 0) FROM materiales WHERE estado = 'activo') AS valor,
+                        (SELECT COUNT(*) FROM ordenes_produccion WHERE estado IN ('planificada', 'en_proceso')) AS activas");
+
 $titulo = 'Dashboard';
 $seccion = 'dashboard';
 $usar_graficos = true;
@@ -66,6 +71,13 @@ require __DIR__ . '/includes/header.php';
     <div class="col-6 col-xl-3"><div class="kpi"><span class="icono"><i class="bi bi-eye"></i></span><div><div class="valor"><?= (int) $kpi['productos_activos'] ?></div><div class="etiqueta-kpi">Productos activos</div></div></div></div>
     <div class="col-6 col-xl-3"><div class="kpi"><span class="icono"><i class="bi bi-receipt"></i></span><div><div class="valor"><?= precio($kpi['ticket']) ?></div><div class="etiqueta-kpi">Ticket promedio</div></div></div></div>
     <div class="col-6 col-xl-3"><div class="kpi"><span class="icono"><i class="bi bi-boxes"></i></span><div><div class="valor"><?= number_format((int) $kpi['unidades_stock'], 0, ',', '.') ?></div><div class="etiqueta-kpi">Unidades en inventario</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-xl-3"><a class="text-reset text-decoration-none" href="<?= url('admin/finanzas.php') ?>"><div class="kpi<?= $finMes['utilidad'] >= 0 ? ' acento' : '' ?>"><span class="icono"><i class="bi bi-graph-up-arrow"></i></span><div><div class="valor <?= $finMes['utilidad'] < 0 ? 'cifra-negativa' : '' ?>"><?= precio($finMes['utilidad']) ?></div><div class="etiqueta-kpi">Utilidad estimada del mes · margen <?= porcentaje($finMes['margen_neto'], 0) ?></div></div></div></a></div>
+    <div class="col-md-6 col-xl-3"><a class="text-reset text-decoration-none" href="<?= url('admin/gastos.php') ?>"><div class="kpi"><span class="icono"><i class="bi bi-wallet2"></i></span><div><div class="valor"><?= precio($finMes['compras'] + $finMes['gastos']) ?></div><div class="etiqueta-kpi">Compras + gastos del mes</div></div></div></a></div>
+    <div class="col-md-6 col-xl-3"><a class="text-reset text-decoration-none" href="<?= url('admin/materiales.php', ['bajo' => 1]) ?>"><div class="kpi"><span class="icono"><i class="bi bi-layers"></i></span><div><div class="valor"><?= precio($fabrica['valor']) ?></div><div class="etiqueta-kpi">Materias primas · <?= (int) $fabrica['bajos'] ?> bajo el mínimo</div></div></div></a></div>
+    <div class="col-md-6 col-xl-3"><a class="text-reset text-decoration-none" href="<?= url('admin/produccion.php') ?>"><div class="kpi"><span class="icono"><i class="bi bi-gear-wide-connected"></i></span><div><div class="valor"><?= (int) $fabrica['activas'] ?></div><div class="etiqueta-kpi">Órdenes de producción activas</div></div></div></a></div>
 </div>
 
 <div class="row g-3 mb-4">

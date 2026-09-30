@@ -304,15 +304,15 @@ prueba('Doble envío no duplica el pedido', (int) valor('SELECT COUNT(*) FROM pe
 seccion('8. Historial, IDOR y cancelación');
 prueba('mis_pedidos lista el pedido', $l->get('mis_pedidos.php')->contiene($pedido['codigo']));
 prueba('Detalle del propio pedido', $l->get('pedido.php?id=' . $pedido['id'])->codigo === 200);
-prueba('Pedido de otro cliente → 404 (IDOR)', $l->get('pedido.php?id=2')->codigo === 404);
-prueba('Confirmación de pedido ajeno → 404', $l->get('pedido_confirmado.php?codigo=FC-000002')->codigo === 404);
+prueba('Pedido de otro cliente → 404 (IDOR)', $l->get('pedido.php?id=202')->codigo === 404);
+prueba('Confirmación de pedido ajeno → 404', $l->get('pedido_confirmado.php?codigo=FC-000202')->codigo === 404);
 $l->get('pedido.php?id=' . $pedido['id']);
 $l->post('pedido.php', ['pedido_id' => $pedido['id'], 'accion' => 'cancelar']);
 prueba('Cliente cancela pedido pendiente', valor('SELECT estado FROM pedidos WHERE id = ?', [$pedido['id']]) === 'cancelado');
 prueba('Stock devuelto al cancelar', stock(50) === $stockAntes);
-$l->get('pedido.php?id=4');
-$l->post('pedido.php', ['pedido_id' => 4, 'accion' => 'cancelar']);
-prueba('No puede cancelar un pedido ya enviado', valor('SELECT estado FROM pedidos WHERE id = 4') === 'enviado');
+$l->get('pedido.php?id=204');
+$l->post('pedido.php', ['pedido_id' => 204, 'accion' => 'cancelar']);
+prueba('No puede cancelar un pedido ya enviado', valor('SELECT estado FROM pedidos WHERE id = 204') === 'enviado');
 
 seccion('9. Perfil');
 $l->get('perfil.php');
@@ -356,7 +356,7 @@ prueba('No permite reutilizar la misma contraseña', $adm->contiene('debe ser di
 $adm->post('cambiar_password.php', ['password_actual' => 'Admin123*', 'password' => 'AdminNueva2026', 'password_confirmacion' => 'AdminNueva2026']);
 prueba('Contraseña de admin cambiada', $adm->codigo === 302 && (int) valor("SELECT debe_cambiar_password FROM usuarios WHERE email = 'admin@firecat.com'") === 0);
 foreach (['admin/index.php', 'admin/productos.php', 'admin/producto_crear.php', 'admin/producto_editar.php?id=1', 'admin/categorias.php',
-          'admin/inventario.php', 'admin/inventario.php?bajo=1', 'admin/pedidos.php', 'admin/pedidos.php?estado=pendiente', 'admin/pedido_detalle.php?id=1',
+          'admin/inventario.php', 'admin/inventario.php?bajo=1', 'admin/pedidos.php', 'admin/pedidos.php?estado=pendiente', 'admin/pedido_detalle.php?id=201',
           'admin/usuarios.php', 'admin/usuario_editar.php?id=2', 'admin/usuario_editar.php', 'admin/reportes.php', 'admin/configuracion.php'] as $ruta) {
     prueba("Admin GET $ruta → 200", $adm->get($ruta)->codigo === 200, (string) $adm->codigo);
 }
@@ -394,7 +394,7 @@ $adm->get('admin/producto_editar.php?id=1');
 $adm->post('admin/producto_editar.php', ['accion' => 'guardar', 'producto_id' => 1, 'categoria_id' => 1, 'nombre' => 'Camiseta básica',
     'descripcion' => 'Actualizada', 'precio' => '59900', 'estado' => 'activo', 'destacado' => '1']);
 prueba('Precio del producto editado', (float) valor('SELECT precio FROM productos WHERE id = 1') === 59900.0);
-prueba('Pedido antiguo conserva precio histórico ($49.900)', (float) valor('SELECT precio_unitario FROM pedido_detalle WHERE pedido_id = 1 AND producto_id = 1') === 49900.0);
+prueba('Pedido antiguo conserva precio histórico ($49.900)', (float) valor('SELECT precio_unitario FROM pedido_detalle WHERE pedido_id = 201 AND producto_id = 1') === 49900.0);
 $adm->get('admin/producto_editar.php?id=' . $nuevoP['id']);
 $adm->post('admin/producto_editar.php', ['accion' => 'agregar_variante', 'producto_id' => $nuevoP['id'], 'talla_id' => 4, 'color_id' => 1, 'stock' => 3]);
 prueba('Agregar variante', (int) valor('SELECT COUNT(*) FROM variantes_producto WHERE producto_id = ?', [$nuevoP['id']]) === 3);
@@ -438,17 +438,17 @@ prueba('Ajuste por conteo físico', stock(2) === $s);
 prueba('Movimientos registrados en kardex', (int) valor("SELECT COUNT(*) FROM movimientos_inventario WHERE variante_id = 2 AND tipo IN ('entrada','ajuste') AND usuario_id = 1 AND motivo IN ('Reposición','Conteo físico')") === 2);
 
 // Pedidos: flujo de estados
-$adm->get('admin/pedido_detalle.php?id=8');
-$adm->post('admin/pedido_detalle.php', ['pedido_id' => 8, 'estado' => 'entregado'])->seguir();
-prueba('Transición inválida (pendiente → entregado) rechazada', valor('SELECT estado FROM pedidos WHERE id = 8') === 'pendiente' && $adm->contiene('No es posible pasar'));
-$adm->post('admin/pedido_detalle.php', ['pedido_id' => 8, 'estado' => 'confirmado', 'comentario' => 'Validado por teléfono']);
-prueba('Cambio de estado pendiente → confirmado', valor('SELECT estado FROM pedidos WHERE id = 8') === 'confirmado');
-prueba('Historial registra el cambio', (int) valor("SELECT COUNT(*) FROM pedido_historial WHERE pedido_id = 8 AND estado_nuevo = 'confirmado' AND usuario_id = 1") === 1);
+$adm->get('admin/pedido_detalle.php?id=208');
+$adm->post('admin/pedido_detalle.php', ['pedido_id' => 208, 'estado' => 'entregado'])->seguir();
+prueba('Transición inválida (pendiente → entregado) rechazada', valor('SELECT estado FROM pedidos WHERE id = 208') === 'pendiente' && $adm->contiene('No es posible pasar'));
+$adm->post('admin/pedido_detalle.php', ['pedido_id' => 208, 'estado' => 'confirmado', 'comentario' => 'Validado por teléfono']);
+prueba('Cambio de estado pendiente → confirmado', valor('SELECT estado FROM pedidos WHERE id = 208') === 'confirmado');
+prueba('Historial registra el cambio', (int) valor("SELECT COUNT(*) FROM pedido_historial WHERE pedido_id = 208 AND estado_nuevo = 'confirmado' AND usuario_id = 1") === 1);
 $s77 = stock(77);
-$adm->post('admin/pedido_detalle.php', ['pedido_id' => 8, 'estado' => 'cancelado']);
-prueba('Cancelación por admin devuelve stock', valor('SELECT estado FROM pedidos WHERE id = 8') === 'cancelado' && stock(77) === $s77 + 1);
-$adm->post('admin/pedido_detalle.php', ['pedido_id' => 8, 'estado' => 'confirmado'])->seguir();
-prueba('Pedido cancelado no admite más cambios', valor('SELECT estado FROM pedidos WHERE id = 8') === 'cancelado');
+$adm->post('admin/pedido_detalle.php', ['pedido_id' => 208, 'estado' => 'cancelado']);
+prueba('Cancelación por admin devuelve stock', valor('SELECT estado FROM pedidos WHERE id = 208') === 'cancelado' && stock(77) === $s77 + 1);
+$adm->post('admin/pedido_detalle.php', ['pedido_id' => 208, 'estado' => 'confirmado'])->seguir();
+prueba('Pedido cancelado no admite más cambios', valor('SELECT estado FROM pedidos WHERE id = 208') === 'cancelado');
 
 // Usuarios
 $adm->get('admin/usuario_editar.php?id=1');
@@ -485,7 +485,7 @@ $tipoXlsx = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 prueba('Exportar pedidos a Excel (.xlsx)', ($adm->cabeceras['content-type'] ?? '') === $tipoXlsx && str_starts_with($adm->html, "PK\x03\x04")
     && str_contains($adm->cabeceras['content-disposition'] ?? '', '.xlsx'));
 if (class_exists('ZipArchive')) {
-    prueba('El Excel de pedidos contiene los pedidos y el detalle', str_contains(hoja_xlsx($adm->html, 1), 'FC-000001') && str_contains(hoja_xlsx($adm->html, 2), 'Camiseta básica'));
+    prueba('El Excel de pedidos contiene los pedidos y el detalle', str_contains(hoja_xlsx($adm->html, 1), 'FC-000201') && str_contains(hoja_xlsx($adm->html, 2), 'Camiseta básica'));
 }
 $adm->get('admin/reportes.php?exportar=ventas');
 prueba('Exportar reporte de ventas a Excel', ($adm->cabeceras['content-type'] ?? '') === $tipoXlsx
@@ -509,7 +509,133 @@ $adm->post('admin/configuracion.php', ['accion' => 'eliminar_talla', 'id' => 3])
 prueba('No se elimina una talla usada por variantes', valor('SELECT id FROM tallas WHERE id = 3') !== null && $adm->contiene('No se puede eliminar'));
 consulta("UPDATE configuracion SET valor = '12000' WHERE clave = 'costo_envio'");
 
-seccion('12. Fuerza bruta');
+seccion('12. Fabricación y finanzas');
+function stock_mat(int $id): float { return (float) valor('SELECT stock FROM materiales WHERE id = ?', [$id]); }
+function prom_mat(int $id): float { return (float) valor('SELECT costo_promedio FROM materiales WHERE id = ?', [$id]); }
+
+foreach (['admin/materiales.php', 'admin/compra_crear.php', 'admin/produccion.php', 'admin/fichas.php', 'admin/gastos.php', 'admin/finanzas.php', 'admin/finanzas.php?exportar=excel'] as $r) {
+    prueba("Cliente en $r → 403", $l->get($r)->codigo === 403, (string) $l->codigo);
+}
+foreach (['admin/proveedores.php', 'admin/materiales.php', 'admin/material_editar.php?id=2', 'admin/compras.php', 'admin/compra_crear.php', 'admin/compra_detalle.php?id=1',
+          'admin/fichas.php', 'admin/ficha_editar.php?producto=6', 'admin/produccion.php?producto=9&cantidad=5', 'admin/produccion_detalle.php?id=1',
+          'admin/gastos.php', 'admin/finanzas.php', 'admin/finanzas.php?periodo=mes_anterior', 'admin/finanzas.php?periodo=anio'] as $r) {
+    prueba("Admin GET $r → 200", $adm->get($r)->codigo === 200, (string) $adm->codigo);
+}
+
+// Proveedor y material
+$adm->get('admin/proveedores.php');
+$adm->post('admin/proveedores.php', ['accion' => 'guardar', 'proveedor_id' => 0, 'nombre' => 'Proveedor de Pruebas S.A.S.', 'nit' => '900555111-1', 'estado' => 'activo', 'email' => 'p@example.com']);
+$provId = (int) valor("SELECT id FROM proveedores WHERE nombre = 'Proveedor de Pruebas S.A.S.'");
+prueba('Crear proveedor', $provId > 0);
+$adm->post('admin/proveedores.php', ['accion' => 'guardar', 'proveedor_id' => 0, 'nombre' => 'Otro', 'nit' => '900555111-1', 'estado' => 'activo']);
+prueba('NIT de proveedor duplicado rechazado', $adm->contiene('Ya existe un proveedor con ese NIT'));
+$adm->get('admin/material_editar.php');
+$adm->post('admin/material_editar.php', ['accion' => 'guardar', 'material_id' => 0, 'tipo_id' => 1, 'codigo' => 'TEL-099', 'nombre' => 'Tela lino de prueba',
+    'unidad' => 'metro', 'stock_minimo' => '5', 'estado' => 'activo', 'stock_inicial' => '0', 'costo_inicial' => '0']);
+$matId = (int) valor("SELECT id FROM materiales WHERE codigo = 'TEL-099'");
+prueba('Crear material', $matId > 0 && stock_mat($matId) == 0.0);
+
+// Compra: suma stock y recalcula el costo promedio ponderado
+$hiloStock = stock_mat(9); $hiloProm = prom_mat(9);
+$adm->get('admin/compra_crear.php');
+$adm->post('admin/compra_crear.php', ['proveedor_id' => $provId, 'fecha' => date('Y-m-d'), 'numero_factura' => 'PR-1',
+    'material_id' => [$matId, 9], 'cantidad' => ['10,5', '5'], 'costo' => ['20000', '10000']]);
+$compraId = (int) valor("SELECT id FROM compras_material WHERE numero_factura = 'PR-1'");
+prueba('Registrar compra (acepta decimales con coma)', $compraId > 0 && (float) valor('SELECT total FROM compras_material WHERE id = ?', [$compraId]) === 260000.0);
+prueba('La compra suma stock', abs(stock_mat($matId) - 10.5) < 0.001 && abs(stock_mat(9) - ($hiloStock + 5)) < 0.001);
+$esperado = round(($hiloStock * $hiloProm + 5 * 10000) / ($hiloStock + 5), 2);
+prueba('Costo promedio ponderado recalculado', abs(prom_mat(9) - $esperado) < 0.01, prom_mat(9) . " vs $esperado");
+prueba('Kardex de materiales registra la compra', (int) valor("SELECT COUNT(*) FROM movimientos_material WHERE compra_id = ? AND tipo = 'compra'", [$compraId]) === 2);
+$adm->get('admin/compra_crear.php');
+$adm->post('admin/compra_crear.php', ['proveedor_id' => $provId, 'fecha' => date('Y-m-d', strtotime('+3 days')), 'material_id' => [9], 'cantidad' => ['1'], 'costo' => ['1']]);
+prueba('Compra con fecha futura rechazada', $adm->contiene('no puede ser futura'));
+$adm->post('admin/compra_crear.php', ['proveedor_id' => $provId, 'fecha' => date('Y-m-d'), 'material_id' => [9], 'cantidad' => ['0'], 'costo' => ['1000']]);
+prueba('Compra con cantidad 0 rechazada', $adm->contiene('Revisa las líneas'));
+
+// Ficha técnica: costo calculado = materiales con merma + mano de obra + indirectos
+$adm->get('admin/ficha_editar.php?producto=5');
+$adm->post('admin/ficha_editar.php', ['producto_id' => 5, 'costo_mano_obra' => '10000', 'costos_indirectos' => '2000', 'tiempo_minutos' => '60', 'notas' => 'Prueba',
+    'material_id' => [$matId, 9, 15], 'cantidad' => ['1,5', '0.05', '1'], 'merma' => ['10', '0', '0']]);
+$costoEsperado = round(1.5 * 1.10 * prom_mat($matId) + 0.05 * prom_mat(9) + 1 * prom_mat(15) + 10000 + 2000, 2);
+prueba('Guardar ficha técnica', (int) valor('SELECT COUNT(*) FROM ficha_materiales fm JOIN fichas_tecnicas f ON f.id = fm.ficha_id WHERE f.producto_id = 5') === 3);
+prueba('Costo de fabricación calculado correctamente', abs((costos_fabricacion([5])[5] ?? 0) - $costoEsperado) < 0.02, (costos_fabricacion([5])[5] ?? 0) . " vs $costoEsperado");
+$adm->post('admin/ficha_editar.php', ['producto_id' => 5, 'costo_mano_obra' => '1', 'costos_indirectos' => '1', 'tiempo_minutos' => '1',
+    'material_id' => [$matId, $matId], 'cantidad' => ['1', '1'], 'merma' => ['0', '0']]);
+prueba('Material repetido en la ficha rechazado', $adm->contiene('aparece dos veces'));
+$adm->get('admin/material_editar.php?id=' . $matId);
+$adm->post('admin/material_editar.php', ['accion' => 'eliminar', 'material_id' => $matId])->seguir();
+prueba('Material en uso no se elimina', (int) valor('SELECT COUNT(*) FROM materiales WHERE id = ?', [$matId]) === 1);
+
+// Producción: planificar → iniciar (consume) → terminar (entra a la tienda)
+$adm->get('admin/produccion.php?producto=9&variante=50&cantidad=2');
+$adm->post('admin/produccion.php', ['accion' => 'crear', 'producto_id' => 9, 'variante_id' => 50, 'cantidad' => 2]);
+$opId = (int) valor('SELECT MAX(id) FROM ordenes_produccion');
+prueba('Crear orden de producción (planificada con costo estimado)', valor('SELECT estado FROM ordenes_produccion WHERE id = ?', [$opId]) === 'planificada'
+    && (float) valor('SELECT costo_total FROM ordenes_produccion WHERE id = ?', [$opId]) > 0);
+$adm->post('admin/produccion.php', ['accion' => 'crear', 'producto_id' => 9, 'variante_id' => 2, 'cantidad' => 2])->seguir();
+prueba('Variante de otro producto rechazada', $adm->contiene('Selecciona una talla/color del producto'));
+$felpa = stock_mat(2); $varStock = stock(50);
+$adm->get('admin/produccion_detalle.php?id=' . $opId);
+$adm->post('admin/produccion_detalle.php', ['orden_id' => $opId, 'accion' => 'iniciar']);
+prueba('Iniciar producción descuenta materiales exactos (1,8 m × 1,08 × 2)', abs(($felpa - stock_mat(2)) - 3.888) < 0.001, (string) ($felpa - stock_mat(2)));
+prueba('Estado en proceso con consumos registrados', valor('SELECT estado FROM ordenes_produccion WHERE id = ?', [$opId]) === 'en_proceso'
+    && (int) valor('SELECT COUNT(*) FROM produccion_consumos WHERE orden_id = ?', [$opId]) === 6);
+$o = fila('SELECT * FROM ordenes_produccion WHERE id = ?', [$opId]);
+prueba('Costo real = materiales + mano de obra + indirectos', abs((float) $o['costo_total'] - ((float) valor('SELECT SUM(subtotal) FROM produccion_consumos WHERE orden_id = ?', [$opId]) + 2 * 15000 + 2 * 3500)) < 0.02);
+prueba('Aún no suma prendas a la tienda', stock(50) === $varStock);
+$adm->post('admin/produccion_detalle.php', ['orden_id' => $opId, 'accion' => 'terminar']);
+prueba('Terminar producción suma las prendas al inventario de la tienda', stock(50) === $varStock + 2 && valor('SELECT estado FROM ordenes_produccion WHERE id = ?', [$opId]) === 'terminada');
+prueba('Kardex de prendas registra la producción', (int) valor("SELECT COUNT(*) FROM movimientos_inventario WHERE orden_id = ? AND tipo = 'produccion' AND cantidad = 2", [$opId]) === 1);
+$adm->post('admin/produccion_detalle.php', ['orden_id' => $opId, 'accion' => 'terminar'])->seguir();
+prueba('Una orden terminada no se puede terminar dos veces', stock(50) === $varStock + 2);
+
+// Materiales insuficientes → ROLLBACK
+$adm->get('admin/produccion.php');
+$adm->post('admin/produccion.php', ['accion' => 'crear', 'producto_id' => 9, 'variante_id' => 50, 'cantidad' => 5000]);
+$opGrande = (int) valor('SELECT MAX(id) FROM ordenes_produccion');
+$felpa = stock_mat(2); $cordon = stock_mat(17);
+$adm->post('admin/produccion_detalle.php', ['orden_id' => $opGrande, 'accion' => 'iniciar'])->seguir();
+prueba('Sin materiales suficientes no inicia (ROLLBACK)', $adm->contiene('Materiales insuficientes') && valor('SELECT estado FROM ordenes_produccion WHERE id = ?', [$opGrande]) === 'planificada'
+    && stock_mat(2) === $felpa && stock_mat(17) === $cordon);
+$adm->post('admin/produccion_detalle.php', ['orden_id' => $opGrande, 'accion' => 'cancelar']);
+prueba('Cancelar orden planificada', valor('SELECT estado FROM ordenes_produccion WHERE id = ?', [$opGrande]) === 'cancelada');
+// Cancelar en proceso devuelve los materiales
+$adm->post('admin/produccion.php', ['accion' => 'crear', 'producto_id' => 19, 'variante_id' => 94, 'cantidad' => 3]);
+$opGorro = (int) valor('SELECT MAX(id) FROM ordenes_produccion');
+$acrilico = stock_mat(7);
+$adm->post('admin/produccion_detalle.php', ['orden_id' => $opGorro, 'accion' => 'iniciar']);
+$consumido = $acrilico - stock_mat(7);
+$adm->post('admin/produccion_detalle.php', ['orden_id' => $opGorro, 'accion' => 'cancelar']);
+prueba('Cancelar orden en proceso devuelve los materiales', $consumido > 0 && abs(stock_mat(7) - $acrilico) < 0.001);
+
+// Anular compra
+$adm->get('admin/compra_detalle.php?id=' . $compraId);
+$hiloAntes = stock_mat(9);
+$adm->post('admin/compra_detalle.php', ['compra_id' => $compraId, 'accion' => 'anular']);
+prueba('Anular compra retira el stock', valor('SELECT estado FROM compras_material WHERE id = ?', [$compraId]) === 'anulada' && abs(stock_mat(9) - ($hiloAntes - 5)) < 0.001);
+$adm->post('admin/compra_detalle.php', ['compra_id' => $compraId, 'accion' => 'anular'])->seguir();
+prueba('No se puede anular dos veces', $adm->contiene('ya fue anulada'));
+
+// Gastos y utilidad
+$antes = resumen_financiero(date('Y-m-01'), date('Y-m-d'));
+$adm->get('admin/gastos.php');
+$adm->post('admin/gastos.php', ['accion' => 'guardar', 'gasto_id' => 0, 'categoria_id' => 7, 'descripcion' => 'Mantenimiento de prueba', 'monto' => '123456',
+    'fecha' => date('Y-m-d'), 'metodo_pago' => 'efectivo']);
+$despues = resumen_financiero(date('Y-m-01'), date('Y-m-d'));
+prueba('Registrar gasto de mantenimiento', abs($despues['gastos_grupo']['mantenimiento'] - $antes['gastos_grupo']['mantenimiento'] - 123456) < 0.01);
+prueba('El gasto reduce la utilidad estimada', abs(($antes['utilidad'] - $despues['utilidad']) - 123456) < 0.01);
+$adm->post('admin/gastos.php', ['accion' => 'guardar', 'gasto_id' => 0, 'categoria_id' => 7, 'descripcion' => 'Negativo', 'monto' => '-5', 'fecha' => date('Y-m-d'), 'metodo_pago' => 'efectivo']);
+prueba('Gasto con monto inválido rechazado', $adm->contiene('Ingresa un monto mayor que cero'));
+$ventasSql = (float) valor("SELECT COALESCE(SUM(total), 0) FROM pedidos WHERE estado <> 'cancelado' AND fecha_pedido BETWEEN ? AND ?", [date('Y-m-01 00:00:00'), date('Y-m-d 23:59:59')]);
+$gastosSql = (float) valor('SELECT COALESCE(SUM(monto), 0) FROM gastos WHERE fecha BETWEEN ? AND ?', [date('Y-m-01'), date('Y-m-d')]);
+prueba('Utilidad = ventas − costo de lo vendido − gastos', abs($despues['utilidad'] - ($ventasSql - $despues['costo_ventas'] - $gastosSql)) < 0.01);
+prueba('Las ventas congelan el costo de fabricación', (float) valor('SELECT costo_unitario FROM pedido_detalle WHERE pedido_id = ?', [$pedido['id']]) > 0);
+$adm->get('admin/finanzas.php');
+prueba('Finanzas responde las preguntas del negocio', $adm->contiene('¿Cuál fue la utilidad aproximada?') && $adm->contiene(precio($despues['utilidad'])) && $adm->contiene('¿Cuánto cuesta fabricar un pantalón?'));
+$adm->get('admin/finanzas.php?exportar=excel');
+prueba('Exportar finanzas a Excel', ($adm->cabeceras['content-type'] ?? '') === $tipoXlsx && (!class_exists('ZipArchive') || str_contains(hoja_xlsx($adm->html, 1), 'UTILIDAD ESTIMADA')));
+
+seccion('13. Fuerza bruta');
 $fb = new Navegador($BASE);
 $fb->get('login.php');
 for ($i = 0; $i < 6; $i++) {

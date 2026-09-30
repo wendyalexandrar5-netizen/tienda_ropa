@@ -137,7 +137,8 @@ function flashes(): array
 
 function precio(float|int|string|null $valor): string
 {
-    return '$' . number_format((float) $valor, 0, ',', '.');
+    $n = round((float) $valor);
+    return ($n < 0 ? '−$' : '$') . number_format(abs($n), 0, ',', '.');
 }
 
 function fecha(?string $valor, bool $conHora = true): string

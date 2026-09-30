@@ -11,6 +11,7 @@ const TIPOS_MOVIMIENTO = [
     'ajuste'     => 'Ajuste',
     'venta'      => 'Venta',
     'devolucion' => 'Devolución',
+    'produccion' => 'Producción',
 ];
 
 function umbral_stock_bajo(): int
@@ -23,7 +24,7 @@ function umbral_stock_bajo(): int
  * @return int stock resultante
  * @throws DomainException si el stock quedaría negativo.
  */
-function mover_stock(int $varianteId, string $tipo, int $delta, ?string $motivo, ?int $usuarioId, ?int $pedidoId = null): int
+function mover_stock(int $varianteId, string $tipo, int $delta, ?string $motivo, ?int $usuarioId, ?int $pedidoId = null, ?int $ordenId = null): int
 {
     if (!db()->inTransaction()) {
         throw new LogicException('mover_stock() requiere una transacción activa.');
@@ -40,8 +41,8 @@ function mover_stock(int $varianteId, string $tipo, int $delta, ?string $motivo,
         throw new DomainException('Stock insuficiente: hay ' . (int) $actual . ' unidad(es) disponibles.');
     }
     consulta('UPDATE variantes_producto SET stock = ? WHERE id = ?', [$nuevo, $varianteId]);
-    consulta('INSERT INTO movimientos_inventario (variante_id, tipo, cantidad, stock_resultante, motivo, usuario_id, pedido_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?)', [$varianteId, $tipo, $delta, $nuevo, $motivo, $usuarioId, $pedidoId]);
+    consulta('INSERT INTO movimientos_inventario (variante_id, tipo, cantidad, stock_resultante, motivo, usuario_id, pedido_id, orden_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [$varianteId, $tipo, $delta, $nuevo, $motivo, $usuarioId, $pedidoId, $ordenId]);
     return $nuevo;
 }
 

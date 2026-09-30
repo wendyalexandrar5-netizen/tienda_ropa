@@ -10,6 +10,8 @@ $seccion = $seccion ?? '';
 $pendientesMenu = (int) valor("SELECT COUNT(*) FROM pedidos WHERE estado = 'pendiente'");
 $stockBajoMenu  = (int) valor("SELECT COUNT(*) FROM variantes_producto v JOIN productos p ON p.id = v.producto_id
                                WHERE v.estado = 'activo' AND p.estado = 'activo' AND v.stock <= ?", [umbral_stock_bajo()]);
+$materialesBajosMenu  = (int) valor("SELECT COUNT(*) FROM materiales WHERE estado = 'activo' AND stock <= stock_minimo");
+$produccionActivaMenu = (int) valor("SELECT COUNT(*) FROM ordenes_produccion WHERE estado IN ('planificada', 'en_proceso')");
 ?>
 <!DOCTYPE html>
 <html lang="es">

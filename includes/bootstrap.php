@@ -27,6 +27,8 @@ require_once __DIR__ . '/catalogo.php';
 require_once __DIR__ . '/carrito.php';
 require_once __DIR__ . '/inventario.php';
 require_once __DIR__ . '/pedidos.php';
+require_once __DIR__ . '/fabricacion.php';
+require_once __DIR__ . '/finanzas.php';
 require_once __DIR__ . '/subidas.php';
 
 configurar_errores();

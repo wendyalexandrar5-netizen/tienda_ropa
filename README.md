@@ -1,7 +1,9 @@
-# FIRE CAT · Tienda online de ropa
+# FIRE CAT · Tienda online, fabricación y finanzas
 
-Tienda online de ropa urbana con catálogo, variantes por talla y color, inventario, carrito, checkout
-transaccional, historial de pedidos y un panel administrativo independiente. Proyecto final de
+Sistema para una marca de ropa urbana que **fabrica y vende** sus propias prendas: tienda online (catálogo, variantes
+por talla y color, carrito, checkout transaccional, historial de pedidos) y un panel administrativo independiente
+con inventario, **materias primas, proveedores, compras, fichas técnicas con costo de fabricación, órdenes de
+producción, gastos, utilidad, rentabilidad y flujo de dinero**. Proyecto final de
 Ingeniería de Sistemas, construido sobre el proyecto original `proyectofinal/` (ver
 [docs/AUDITORIA.md](docs/AUDITORIA.md)).
 
@@ -11,7 +13,7 @@ Ingeniería de Sistemas, construido sobre el proyecto original `proyectofinal/` 
 |---|---|
 | Servidor | Apache 2.4 (XAMPP) con `mod_rewrite` y `.htaccess` |
 | Backend | PHP 8.0+ sin framework, estructura modular (`includes/`, `admin/`, `config/`) |
-| Base de datos | MySQL 5.7+ / MariaDB 10.4+ con PDO y consultas preparadas |
+| Base de datos | MariaDB 10.4+ (la de XAMPP) o MySQL 8.0+, con PDO y consultas preparadas |
 | Frontend | HTML5, CSS3, JavaScript sin dependencias, Bootstrap 5.3, Bootstrap Icons |
 | Gráficos | Chart.js 4 (panel administrativo) |
 
@@ -34,7 +36,7 @@ Todas las librerías están **dentro del proyecto** (`assets/vendor/`): funciona
    para sus `.htaccess` (bloqueo de carpetas internas y de ejecución de PHP en `uploads/`). Si su Apache no los tiene:
    en `httpd.conf` descomente `LoadModule rewrite_module …` y use `AllowOverride All` en el bloque `<Directory "…/htdocs">`.
 4. **Crear la base de datos con phpMyAdmin:** abra <http://localhost/phpmyadmin> → pestaña **Importar** →
-   *Seleccionar archivo* → `database.sql` → **Continuar**. El script crea la base `tienda_ropa`, las 15 tablas, la vista,
+   *Seleccionar archivo* → `database.sql` → **Continuar**. El script crea la base `tienda_ropa`, las 27 tablas, la vista,
    las relaciones y los datos de prueba (no hace falta crear la base antes: el script ejecuta `CREATE DATABASE`).
    > ⚠️ El script **borra** la base `tienda_ropa` si ya existe; úselo también para restaurar la demo.
 5. **Configurar la conexión** (sólo si su MySQL no usa los valores por defecto de XAMPP: `127.0.0.1`, usuario `root`,
@@ -50,7 +52,7 @@ puede fijarla con `'base_url' => '/tienda_ropa'` en `config/config.local.php`.
 |---|---|---|
 | Administrador | `admin@firecat.com` | `Admin123*` → **se obliga a cambiarla en el primer ingreso** |
 | Cliente | `cliente@firecat.com` | `Cliente123*` |
-| Clientes extra | `andres@example.com`, `camila@example.com` | `Cliente123*` |
+| Clientes extra | `andres@example.com`, `camila@example.com` y 12 clientes más (`…@example.com`) | `Cliente123*` |
 
 Las contraseñas **no** están en el código PHP: en `database.sql` sólo existe su hash bcrypt generado con
 `password_hash()`. Cambie o elimine estas cuentas antes de publicar la tienda.
@@ -83,6 +85,45 @@ Las contraseñas **no** están en el código PHP: en `database.sql` sólo existe
 - **Reportes:** ventas por día, ingresos por categoría, top 10, **resumen de caja por día** y exportación a **Excel (.xlsx)**: libro de pedidos (pedidos + detalle de productos) y reporte de ventas (caja por día, top de productos, por categoría y resumen).
 - **Configuración:** datos de la tienda, costos de envío, umbral de stock bajo, tallas y colores.
 
+**Fabricación (`/admin`, sección *Fabricación*)**
+- **Materias primas:** telas, hilos, botones, cierres, etiquetas y empaque, otros insumos; unidad de medida, stock,
+  stock mínimo con alertas, **costo promedio ponderado**, valor del inventario por tipo y kardex por material.
+  Ajustes por merma, entrada manual o conteo físico.
+- **Proveedores:** CRUD con NIT, contacto y total comprado; no se eliminan si tienen compras.
+- **Compras de materiales:** factura con varias líneas (subtotal y total en vivo) que suma stock y recalcula el costo
+  promedio; anulación que devuelve el stock si el material no se ha consumido.
+- **Fichas técnicas (recetas):** materiales por prenda con % de merma, mano de obra directa, costos indirectos y tiempo;
+  el sistema calcula **cuánto cuesta fabricar cada prenda** y su margen, y el promedio por categoría (camisetas,
+  pantalones, sudaderas…).
+- **Producción:** órdenes *planificada → en proceso → terminada* (o cancelada). El planificador muestra los materiales
+  necesarios frente al stock; al **iniciar** se descuentan todos los materiales en una transacción (si falta uno, no
+  se descuenta ninguno); al **terminar** las prendas entran al inventario de la tienda. El costo real se guarda en la orden.
+
+**Finanzas (`/admin`, sección *Finanzas*)**
+- **Gastos:** operativos (arriendo, servicios, nómina administrativa, publicidad, transporte…), mantenimiento
+  (maquinaria, instalaciones) y otros, con categorías configurables.
+- **Utilidad y flujo:** para el mes, el mes anterior, los últimos 30 días, el año o un rango: estado de resultados
+  (ventas − costo de lo vendido = utilidad bruta − gastos = **utilidad estimada**), flujo de dinero (lo que entró −
+  compras − gastos), "¿en qué se gastó?", rentabilidad por producto, evolución mensual, costo de fabricación por
+  tipo de prenda, inventario de materias primas y exportación a **Excel** (6 hojas).
+
+### ¿Dónde responde el sistema cada pregunta?
+
+| Pregunta | Dónde verla |
+|---|---|
+| "Vendimos $X este mes, ¿cuánto gastamos en telas, materiales, mantenimiento y otros gastos?" | *Utilidad y flujo* → tarjetas superiores y tabla **¿En qué se gastó el dinero?** |
+| "¿Cuánto cuesta realmente fabricar una camiseta / un pantalón?" | *Utilidad y flujo* → tarjetas de costo; detalle por prenda en *Fichas y costos* |
+| "¿Cuánto gastamos en materias primas este mes?" | *Utilidad y flujo* → **¿Cuánto gastamos en materias primas?**; detalle en *Compras* |
+| "¿Cuánto dinero ingresó por ventas?" | *Utilidad y flujo* → **¿Cuánto dinero ingresó por ventas?** (vendido y cobrado) |
+| "¿Cuál fue la utilidad aproximada?" | *Utilidad y flujo* → **Estado de resultados** |
+| "¿Qué materiales tenemos actualmente en inventario?" | *Materias primas* (con stock, costo y valor) |
+
+> **Cómo se calcula la utilidad.** Cada venta guarda ("congela") el costo de fabricación de la prenda según su ficha
+> técnica, igual que guarda el precio. Utilidad estimada = ventas − costo de lo vendido − gastos. La mano de obra
+> directa ya está dentro del costo de cada prenda, por eso no se registra otra vez como gasto. Comprar tela es una
+> **salida de dinero**, pero todavía no es un costo: se vuelve costo cuando la prenda fabricada se vende. Por eso el
+> *flujo de dinero* y la *utilidad* no dan lo mismo, y el sistema muestra ambos.
+
 ## 6. Estructura del proyecto
 
 ```
@@ -96,12 +137,17 @@ tienda_ropa/
 │   ├── productos.php, producto_crear.php, producto_editar.php
 │   ├── categorias.php, inventario.php, pedidos.php, pedido_detalle.php
 │   ├── usuarios.php, usuario_editar.php, reportes.php, configuracion.php
+│   ├── materiales.php, material_editar.php, proveedores.php                 ← fabricación
+│   ├── compras.php, compra_crear.php, compra_detalle.php
+│   ├── fichas.php, ficha_editar.php, produccion.php, produccion_detalle.php
+│   ├── gastos.php, finanzas.php                                             ← finanzas
 │   └── includes/ header.php, sidebar.php, footer.php, producto_form.php, funciones_admin.php
 ├── includes/
 │   ├── bootstrap.php     ← se incluye en cada página: config, errores, sesión, CSRF
 │   ├── db.php            ← conexión PDO + helpers + transacciones
 │   ├── sesion.php, csrf.php, auth.php (autenticación y roles), validacion.php, errores.php, funciones.php
 │   ├── catalogo.php, carrito.php, inventario.php, pedidos.php, subidas.php   ← lógica de negocio
+│   ├── fabricacion.php, finanzas.php, xlsx.php (generador de Excel)
 │   ├── header.php, footer.php                                                 ← plantilla de la tienda
 │   └── partials/ (tarjeta de producto, alertas, paginación, error, auth…)
 ├── config/ config.php, config.local.example.php
@@ -115,7 +161,7 @@ tienda_ropa/
 
 ## 7. Base de datos
 
-15 tablas normalizadas + 1 vista. Diagrama entidad-relación, diccionario de datos y reglas de integridad en
+27 tablas normalizadas + 1 vista. Diagrama entidad-relación, diccionario de datos y reglas de integridad en
 [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md). Resumen:
 
 | Tabla | Descripción |
@@ -130,6 +176,12 @@ tienda_ropa/
 | `movimientos_inventario` | Kardex: entradas, salidas, ajustes, ventas y devoluciones |
 | `password_resets`, `intentos_login` | Recuperación de contraseña y protección de fuerza bruta |
 | `configuracion` | Ajustes de la tienda |
+| `proveedores`, `tipos_material`, `materiales` | Proveedores y materias primas con stock y costo promedio |
+| `compras_material`, `compra_detalle` | Compras a proveedores |
+| `movimientos_material` | Kardex de materias primas: compras, consumos, ajustes, devoluciones y anulaciones |
+| `fichas_tecnicas`, `ficha_materiales` | Receta de cada prenda: materiales con merma, mano de obra e indirectos |
+| `ordenes_produccion`, `produccion_consumos` | Órdenes de producción y consumo real de materiales (con su costo) |
+| `categorias_gasto`, `gastos` | Gastos operativos, de mantenimiento y otros |
 
 ## 8. Seguridad implementada
 
@@ -168,9 +220,11 @@ Con Apache y MySQL encendidos y la base recién importada:
 php tests/pruebas_integracion.php http://localhost/tienda_ropa
 ```
 
-La suite ejecuta **156 comprobaciones por HTTP real** y verifica el estado de la base de datos: registro, login,
+La suite ejecuta **211 comprobaciones por HTTP real** y verifica el estado de la base de datos: registro, login,
 logout, login incorrecto, búsqueda, filtros, carrito, cambio de cantidades, checkout, creación del pedido, historial,
-perfil, recuperación de contraseña, CRUD del panel, inventario, flujo de estados, usuarios, reportes y exportación a Excel, SQL Injection,
+perfil, recuperación de contraseña, CRUD del panel, inventario, flujo de estados, usuarios, reportes y exportación a Excel, proveedores, compras con costo promedio ponderado, fichas técnicas, producción
+(consumo exacto de materiales, entrada a la tienda, ROLLBACK si faltan materiales, cancelación con devolución),
+gastos y cálculo de utilidad, SQL Injection,
 XSS, CSRF, IDOR, acceso de clientes al panel, manipulación de precios y cantidades, compra sin stock, `ROLLBACK`
 cuando el stock cambia durante el checkout, subida de un PHP disfrazado de imagen y fuerza bruta.
 Las pruebas modifican datos: **vuelva a importar `database.sql`** al terminar.
@@ -182,13 +236,25 @@ Las pruebas modifican datos: **vuelva a importar `database.sql`** al terminar.
 2. En *Mis pedidos* vea la línea de tiempo y el comprobante imprimible.
 3. Entre al panel como `admin@firecat.com` (le pedirá cambiar la contraseña), revise el dashboard, avance el pedido
    a *Confirmado* → *Preparado* y observe el kardex en *Inventario*.
-4. Cambie el precio de la *Camiseta básica* y compruebe que el pedido `FC-000001` conserva su precio histórico ($49.900).
+4. Cambie el precio de la *Camiseta básica* y compruebe que el pedido `FC-000201` conserva su precio histórico ($49.900).
+5. **Fabricación:** en *Fichas y costos* abra la *Sudadera clásica* y vea cuánto cuesta fabricarla. En *Producción*
+   planifique 10 unidades de *Chaqueta urbana M/Beige* (tiene poco stock): el sistema muestra los materiales necesarios.
+   Inicie la orden (se descuentan los materiales), termínela (entran las prendas a la tienda) y revise el kardex de la tela.
+6. **Compras:** registre una compra de *Cierre de nylon 18 cm* (está bajo el mínimo) y observe cómo cambian el stock
+   y el costo promedio.
+7. **Finanzas:** registre un gasto de mantenimiento y abra *Utilidad y flujo*: la utilidad estimada baja exactamente
+   en ese valor. Exporte el reporte a Excel.
+
+Los datos de demostración incluyen ~3 meses de historia: 208 pedidos (FC-000001 a FC-000208), 5 proveedores,
+19 materias primas, 6 compras, 20 fichas técnicas, 5 órdenes de producción y 24 gastos, todos coherentes entre sí
+(los kardex cuadran exactamente con el stock).
 
 ## 11. Mejoras futuras
 
 - Envío real de correos (PHPMailer + SMTP) para recuperación de contraseña y avisos de estado.
 - Pasarela de pagos (PSE, tarjetas) con webhooks.
 - Galería de varias imágenes por producto y precios de oferta con vigencia.
+- Fichas técnicas con consumo distinto por talla, cuentas por pagar a proveedores y conciliación bancaria.
 - "Recordarme" seguro con tokens rotativos y verificación de correo al registrarse.
 - Carrito de invitado que se fusione al iniciar sesión.
 - Autenticación de dos factores para administradores y registro de auditoría de acciones del panel.

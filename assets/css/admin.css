@@ -72,3 +72,18 @@ body.admin { background: var(--fc-crema); }
 .kpi > div { min-width: 0; }
 .kpi .valor { font-size: clamp(1rem, 1.3vw, 1.5rem); white-space: nowrap; }
 .barra-filtros.row { margin-left: 0; margin-right: 0; }
+.admin-sidebar .menu-grupo {
+  font-size: .68rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+  color: #8a8a8a; padding: .9rem .8rem .3rem;
+}
+.admin-sidebar .nav-link { padding: .5rem .8rem; }
+.tabla-admin tfoot td { font-weight: 700; background: #faf9f6; }
+.pregunta { border-left: 4px solid var(--fc-amarillo); }
+.pregunta .p { font-size: .8rem; color: var(--fc-gris); font-weight: 700; }
+.pregunta .r { font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; }
+.cifra-positiva { color: #198754 !important; }
+.cifra-negativa { color: #c62828 !important; }
+.formula { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; background: var(--fc-crema); border-radius: 8px; padding: .5rem .75rem; }
+.fila-linea td { vertical-align: top; }
+.admin-sidebar .nav-link { font-size: .93rem; }
+.admin-sidebar .nav-link span.flex-grow-1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
