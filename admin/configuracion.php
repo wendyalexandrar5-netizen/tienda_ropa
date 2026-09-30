@@ -46,7 +46,7 @@ if (es_post()) {
                 throw new DomainException('Escribe una talla nueva (máx. 10 caracteres) que no exista.');
             }
             consulta('INSERT INTO tallas (nombre, orden) VALUES (?, ?)', [$nombre, max(0, min(99, post_int('orden', 50)))]);
-            flash('success', "Talla «$nombre» agregada.");
+            flash('success', "Talla «{$nombre}» agregada.");
             redirigir('admin/configuracion.php');
         } elseif ($accion === 'color') {
             $nombre = post_texto('nombre', 30);
@@ -55,7 +55,7 @@ if (es_post()) {
                 throw new DomainException('Escribe un color nuevo y un código hexadecimal válido (#RRGGBB).');
             }
             consulta('INSERT INTO colores (nombre, codigo_hex) VALUES (?, ?)', [$nombre, $hex]);
-            flash('success', "Color «$nombre» agregado.");
+            flash('success', "Color «{$nombre}» agregado.");
             redirigir('admin/configuracion.php');
         } elseif ($accion === 'eliminar_talla' || $accion === 'eliminar_color') {
             $tabla = $accion === 'eliminar_talla' ? 'tallas' : 'colores';

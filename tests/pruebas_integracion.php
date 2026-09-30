@@ -474,6 +474,16 @@ $adm->get('admin/configuracion.php');
 $adm->post('admin/configuracion.php', ['accion' => 'ajustes', 'nombre_tienda' => 'FIRE CAT', 'eslogan' => 'La mejor calidad en venta de ropa y textiles',
     'email_contacto' => 'hola@firecat.com', 'telefono_contacto' => '+57 300 000 0000', 'costo_envio' => '15000', 'envio_gratis_desde' => '200000', 'umbral_stock_bajo' => '5']);
 prueba('Guardar configuración', valor("SELECT valor FROM configuracion WHERE clave = 'costo_envio'") === '15000');
+$adm->get('admin/configuracion.php');
+$adm->post('admin/configuracion.php', ['accion' => 'talla', 'nombre' => 'XXXL', 'orden' => 8])->seguir();
+prueba('Agregar talla', $adm->codigo === 200 && $adm->contiene('Talla «XXXL» agregada.') && valor("SELECT id FROM tallas WHERE nombre = 'XXXL'") !== null);
+$adm->post('admin/configuracion.php', ['accion' => 'color', 'nombre' => 'Verde oliva', 'codigo_hex' => '#6b7a3a'])->seguir();
+prueba('Agregar color', $adm->codigo === 200 && $adm->contiene('Color «Verde oliva» agregado.') && valor("SELECT codigo_hex FROM colores WHERE nombre = 'Verde oliva'") === '#6B7A3A');
+$idColor = (int) valor("SELECT id FROM colores WHERE nombre = 'Verde oliva'");
+$adm->post('admin/configuracion.php', ['accion' => 'eliminar_color', 'id' => $idColor])->seguir();
+prueba('Eliminar color sin uso', $adm->codigo === 200 && valor('SELECT id FROM colores WHERE id = ?', [$idColor]) === null);
+$adm->post('admin/configuracion.php', ['accion' => 'eliminar_talla', 'id' => 3])->seguir();
+prueba('No se elimina una talla usada por variantes', valor('SELECT id FROM tallas WHERE id = 3') !== null && $adm->contiene('No se puede eliminar'));
 consulta("UPDATE configuracion SET valor = '12000' WHERE clave = 'costo_envio'");
 
 seccion('12. Fuerza bruta');
