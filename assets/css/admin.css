@@ -60,6 +60,9 @@ body.admin { background: var(--fc-crema); }
 .form-control-sm, .form-select-sm { border-radius: 8px; padding: .4rem .7rem; }
 .vista-previa { width: 100%; max-width: 220px; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 12px; background: var(--fc-crema); }
 @media (max-width: 575.98px) {
+  .kpi { flex-direction: column; align-items: flex-start; gap: .6rem; padding: 1rem; }
+  .kpi .icono { width: 40px; height: 40px; font-size: 1.1rem; }
+  .kpi .valor { font-size: 1.15rem; }
   .admin-contenido { padding: 1rem; }
   .admin-topbar { padding: .6rem 1rem; }
 }
@@ -67,5 +70,5 @@ body.admin { background: var(--fc-crema); }
 .admin-sidebar, .admin-sidebar.offcanvas-lg { background-color: var(--fc-negro) !important; }
 .admin-sidebar .marca { color: #fff; }
 .kpi > div { min-width: 0; }
-.kpi .valor { font-size: clamp(1.1rem, 1.5vw, 1.55rem); overflow-wrap: anywhere; }
+.kpi .valor { font-size: clamp(1rem, 1.3vw, 1.5rem); white-space: nowrap; }
 .barra-filtros.row { margin-left: 0; margin-right: 0; }

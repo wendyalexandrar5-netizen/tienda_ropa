@@ -352,7 +352,7 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .display-font {
 @keyframes moverDerecha { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 .auth-tarjeta {
   position: relative; z-index: 1; width: 100%; max-width: 460px;
-  background: #fff; border-radius: 22px; padding: 2.25rem;
+  background: #fff; color: var(--fc-tinta); border-radius: 22px; padding: 2.25rem;
   box-shadow: 0 30px 60px rgba(0, 0, 0, .35);
 }
 .auth-tarjeta.ancha { max-width: 640px; }

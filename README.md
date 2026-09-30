@@ -80,7 +80,7 @@ Las contraseñas **no** están en el código PHP: en `database.sql` sólo existe
 - **Pedidos:** filtros por estado, texto y fechas; detalle con cambio de estado según el flujo permitido; al cancelar
   se devuelve el stock.
 - **Clientes:** búsqueda, activar/desactivar, editar datos y rol, crear usuarios y generar contraseñas temporales.
-- **Reportes:** ventas por día, ingresos por categoría, top 10, **resumen de caja por día** y exportación CSV.
+- **Reportes:** ventas por día, ingresos por categoría, top 10, **resumen de caja por día** y exportación a **Excel (.xlsx)**: libro de pedidos (pedidos + detalle de productos) y reporte de ventas (caja por día, top de productos, por categoría y resumen).
 - **Configuración:** datos de la tienda, costos de envío, umbral de stock bajo, tallas y colores.
 
 ## 6. Estructura del proyecto
@@ -149,7 +149,7 @@ tienda_ropa/
 | Open redirect | El parámetro `retorno` sólo acepta rutas internas `*.php` |
 | Errores | En producción no se muestran rutas, SQL ni trazas: página amigable + registro en `storage/logs/app.log` |
 | Cabeceras | CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` |
-| CSV | Protección contra inyección de fórmulas al exportar |
+| Exportación a Excel | Generador `.xlsx` propio (`includes/xlsx.php`, sin librerías externas); los textos se escriben como texto, nunca como fórmula, evitando la inyección de fórmulas; sólo lo descargan administradores |
 
 **Recordar sesión:** no se implementó a propósito; un "recordarme" seguro requiere tokens rotativos
 selector/validador, y la sesión actual ya dura mientras haya actividad. Se deja como mejora futura.
@@ -168,9 +168,9 @@ Con Apache y MySQL encendidos y la base recién importada:
 php tests/pruebas_integracion.php http://localhost/tienda_ropa
 ```
 
-La suite ejecuta **149 comprobaciones por HTTP real** y verifica el estado de la base de datos: registro, login,
+La suite ejecuta **156 comprobaciones por HTTP real** y verifica el estado de la base de datos: registro, login,
 logout, login incorrecto, búsqueda, filtros, carrito, cambio de cantidades, checkout, creación del pedido, historial,
-perfil, recuperación de contraseña, CRUD del panel, inventario, flujo de estados, usuarios, reportes, SQL Injection,
+perfil, recuperación de contraseña, CRUD del panel, inventario, flujo de estados, usuarios, reportes y exportación a Excel, SQL Injection,
 XSS, CSRF, IDOR, acceso de clientes al panel, manipulación de precios y cantidades, compra sin stock, `ROLLBACK`
 cuando el stock cambia durante el checkout, subida de un PHP disfrazado de imagen y fuerza bruta.
 Las pruebas modifican datos: **vuelva a importar `database.sql`** al terminar.

@@ -56,7 +56,7 @@ nombre o descripción del producto, pedidos de clientes, perfil, panel separado.
 | Pago recibido y cambio (POS) | Campo *"¿Con cuánto pagarás?"* en el checkout contra entrega; el cambio se muestra al cliente y al repartidor |
 | Historial de ventas | `admin/pedidos.php` + `admin/pedido_detalle.php` |
 | Descargar venta en PDF | Comprobante con estilos de impresión (**Imprimir / PDF**) sin depender de CDN |
-| Resumen de caja por día | `admin/reportes.php` → *Resumen de caja por día* (agrupando por fecha real) + CSV |
+| Resumen de caja por día | `admin/reportes.php` → *Resumen de caja por día* (agrupando por fecha real) + exportación a Excel (.xlsx) |
 
 ### Correspondencia de archivos (eliminados → reemplazo)
 

@@ -466,8 +466,31 @@ $adm->post('admin/usuario_editar.php', ['usuario_id' => 0, 'nombre' => 'Soporte'
 prueba('Crear usuario con contraseña temporal', $adm->contiene('Contraseña temporal (se muestra sólo esta vez)'));
 
 // Reportes y configuración
+/** Lee el texto de una hoja de un .xlsx descargado (se usa ZipArchive si está disponible). */
+function hoja_xlsx(string $binario, int $n): string
+{
+    if (!class_exists('ZipArchive')) {
+        return '';
+    }
+    $tmp = tempnam(sys_get_temp_dir(), 'xl');
+    file_put_contents($tmp, $binario);
+    $zip = new ZipArchive();
+    $xml = $zip->open($tmp) === true ? (string) $zip->getFromName("xl/worksheets/sheet$n.xml") : '';
+    $zip->close();
+    unlink($tmp);
+    return $xml;
+}
 $adm->get('admin/reportes.php?exportar=pedidos');
-prueba('Exportar pedidos a CSV', str_contains($adm->cabeceras['content-type'] ?? '', 'text/csv') && str_contains($adm->html, 'FC-000001'));
+$tipoXlsx = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+prueba('Exportar pedidos a Excel (.xlsx)', ($adm->cabeceras['content-type'] ?? '') === $tipoXlsx && str_starts_with($adm->html, "PK\x03\x04")
+    && str_contains($adm->cabeceras['content-disposition'] ?? '', '.xlsx'));
+if (class_exists('ZipArchive')) {
+    prueba('El Excel de pedidos contiene los pedidos y el detalle', str_contains(hoja_xlsx($adm->html, 1), 'FC-000001') && str_contains(hoja_xlsx($adm->html, 2), 'Camiseta básica'));
+}
+$adm->get('admin/reportes.php?exportar=ventas');
+prueba('Exportar reporte de ventas a Excel', ($adm->cabeceras['content-type'] ?? '') === $tipoXlsx
+    && (!class_exists('ZipArchive') || str_contains(hoja_xlsx($adm->html, 1), 'Total')));
+prueba('Cliente no puede descargar el Excel', $l->get('admin/reportes.php?exportar=ventas')->codigo === 403);
 $adm->get('admin/reportes.php');
 prueba('Reporte de caja por día', $adm->contiene('Resumen de caja por día'));
 $adm->get('admin/configuracion.php');

@@ -37,35 +37,85 @@ $cancelados = (int) valor("SELECT COUNT(*) FROM pedidos WHERE estado = 'cancelad
 $unidades = (int) valor("SELECT COALESCE(SUM(d.cantidad), 0) FROM pedido_detalle d JOIN pedidos p ON p.id = d.pedido_id
                         WHERE p.estado <> 'cancelado' AND p.fecha_pedido BETWEEN ? AND ?", $rango);
 
-/** Evita la inyección de fórmulas al abrir el CSV en Excel. */
-function celda_csv($v): string
-{
-    $v = (string) $v;
-    return preg_match('/^[=+\-@\t\r]/', $v) ? "'" . $v : $v;
-}
-
 $export = get_texto('exportar', 10);
-if ($export === 'caja' || $export === 'pedidos') {
-    header('Content-Type: text/csv; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="' . $export . "_{$desde}_{$hasta}.csv\"");
-    $out = fopen('php://output', 'w');
-    fwrite($out, "\xEF\xBB\xBF"); // BOM para que Excel reconozca UTF-8
-    if ($export === 'caja') {
-        fputcsv($out, ['Fecha', 'Pedidos', 'Total vendido', 'Cobrado (entregados)', 'Efectivo declarado', 'Cambio'], ';');
-        foreach ($caja as $c) {
-            fputcsv($out, [$c['dia'], $c['pedidos'], $c['total'], $c['cobrado'], $c['efectivo'], $c['cambio']], ';');
-        }
-    } else {
-        fputcsv($out, ['Código', 'Fecha', 'Cliente', 'Correo', 'Ciudad', 'Estado', 'Método de pago', 'Subtotal', 'Envío', 'Total'], ';');
-        $st = consulta("SELECT p.codigo, p.fecha_pedido, CONCAT(u.nombre, ' ', u.apellido) AS cliente, u.email, p.ciudad_entrega, p.estado, p.metodo_pago,
-                               p.subtotal, p.costo_envio, p.total
-                        FROM pedidos p JOIN usuarios u ON u.id = p.usuario_id WHERE p.fecha_pedido BETWEEN ? AND ? ORDER BY p.fecha_pedido", $rango);
-        while ($f = $st->fetch()) {
-            fputcsv($out, array_map('celda_csv', array_values($f)), ';');
-        }
+if ($export === 'pedidos' || $export === 'ventas') {
+    require ROOT_PATH . '/includes/xlsx.php';
+    $sufijo = "{$desde}_{$hasta}.xlsx";
+
+    if ($export === 'pedidos') {
+        $pedidosX = filas("SELECT p.codigo, p.fecha_pedido, CONCAT(u.nombre, ' ', u.apellido) AS cliente, u.email, p.telefono_entrega,
+                                  p.ciudad_entrega, p.estado, p.metodo_pago, p.subtotal, p.costo_envio, p.total
+                           FROM pedidos p JOIN usuarios u ON u.id = p.usuario_id
+                           WHERE p.fecha_pedido BETWEEN ? AND ? ORDER BY p.fecha_pedido", $rango);
+        $detalleX = filas("SELECT p.codigo, p.fecha_pedido, d.nombre_producto, d.talla, d.color, d.cantidad, d.precio_unitario, d.subtotal, p.estado
+                           FROM pedido_detalle d JOIN pedidos p ON p.id = d.pedido_id
+                           WHERE p.fecha_pedido BETWEEN ? AND ? ORDER BY p.fecha_pedido, d.id", $rango);
+        $noCancelados = array_filter($pedidosX, static fn($f) => $f['estado'] !== 'cancelado');
+        enviar_xlsx("pedidos_$sufijo", [
+            [
+                'nombre'   => 'Pedidos',
+                'columnas' => [['Código', 'texto', 13], ['Fecha', 'fechahora', 17], ['Cliente', 'texto', 24], ['Correo', 'texto', 28],
+                               ['Teléfono', 'texto', 14], ['Ciudad', 'texto', 14], ['Estado', 'texto', 12], ['Método de pago', 'texto', 24],
+                               ['Subtotal', 'moneda', 13], ['Envío', 'moneda', 11], ['Total', 'moneda', 13]],
+                'filas'    => array_map(static fn($f) => [
+                    $f['codigo'], $f['fecha_pedido'], $f['cliente'], $f['email'], $f['telefono_entrega'], $f['ciudad_entrega'],
+                    estado_pedido_texto($f['estado']), METODOS_PAGO[$f['metodo_pago']] ?? $f['metodo_pago'],
+                    (float) $f['subtotal'], (float) $f['costo_envio'], (float) $f['total'],
+                ], $pedidosX),
+                'totales'  => ['Total (sin cancelados)', null, null, null, null, null, null, null,
+                               array_sum(array_column($noCancelados, 'subtotal')), array_sum(array_column($noCancelados, 'costo_envio')),
+                               array_sum(array_column($noCancelados, 'total'))],
+            ],
+            [
+                'nombre'   => 'Detalle de productos',
+                'columnas' => [['Pedido', 'texto', 13], ['Fecha', 'fechahora', 17], ['Producto', 'texto', 28], ['Talla', 'texto', 8],
+                               ['Color', 'texto', 12], ['Cantidad', 'entero', 10], ['Precio unitario', 'moneda', 15],
+                               ['Subtotal', 'moneda', 13], ['Estado del pedido', 'texto', 16]],
+                'filas'    => array_map(static fn($f) => [
+                    $f['codigo'], $f['fecha_pedido'], $f['nombre_producto'], $f['talla'], $f['color'], (int) $f['cantidad'],
+                    (float) $f['precio_unitario'], (float) $f['subtotal'], estado_pedido_texto($f['estado']),
+                ], $detalleX),
+            ],
+        ]);
     }
-    fclose($out);
-    exit;
+
+    // Reporte de ventas: caja por día, top de productos e ingresos por categoría
+    enviar_xlsx("reporte_ventas_$sufijo", [
+        [
+            'nombre'   => 'Caja por día',
+            'columnas' => [['Fecha', 'fecha', 12], ['Pedidos', 'entero', 10], ['Total vendido', 'moneda', 15],
+                           ['Cobrado (entregados)', 'moneda', 20], ['Efectivo declarado', 'moneda', 18], ['Cambio', 'moneda', 12]],
+            'filas'    => array_map(static fn($c) => [$c['dia'], (int) $c['pedidos'], (float) $c['total'], (float) $c['cobrado'],
+                                                     (float) $c['efectivo'], (float) $c['cambio']], $caja),
+            'totales'  => ['Total', array_sum(array_column($caja, 'pedidos')), array_sum(array_column($caja, 'total')),
+                           array_sum(array_column($caja, 'cobrado')), array_sum(array_column($caja, 'efectivo')), array_sum(array_column($caja, 'cambio'))],
+        ],
+        [
+            'nombre'   => 'Top productos',
+            'columnas' => [['Producto', 'texto', 30], ['Unidades', 'entero', 10], ['Ingresos', 'moneda', 14], ['Precio medio', 'moneda', 14]],
+            'filas'    => array_map(static fn($t) => [$t['nombre_producto'], (int) $t['unidades'], (float) $t['ingresos'], (float) $t['precio_medio']], $top),
+        ],
+        [
+            'nombre'   => 'Por categoría',
+            'columnas' => [['Categoría', 'texto', 18], ['Unidades', 'entero', 10], ['Ingresos', 'moneda', 14]],
+            'filas'    => array_map(static fn($c) => [$c['nombre'], (int) $c['unidades'], (float) $c['ingresos']], $porCategoria),
+            'totales'  => ['Total', array_sum(array_column($porCategoria, 'unidades')), array_sum(array_column($porCategoria, 'ingresos'))],
+        ],
+        [
+            'nombre'   => 'Resumen',
+            'columnas' => [['Indicador', 'texto', 30], ['Valor', 'texto', 22]],
+            'filas'    => [
+                ['Periodo', fecha($desde, false) . ' - ' . fecha($hasta, false)],
+                ['Ventas (sin cancelados)', precio($resumen['ventas'])],
+                ['Pedidos', (string) (int) $resumen['pedidos']],
+                ['Pedidos cancelados', (string) $cancelados],
+                ['Ticket promedio', precio($resumen['ticket'])],
+                ['Unidades vendidas', (string) $unidades],
+                ['Clientes que compraron', (string) (int) $resumen['compradores']],
+                ['Generado', date('d/m/Y H:i')],
+            ],
+        ],
+    ]);
 }
 
 // Serie diaria completa para el gráfico
@@ -83,12 +133,12 @@ $usar_graficos = true;
 require __DIR__ . '/includes/header.php';
 ?>
 <form class="barra-filtros row g-2 align-items-end mb-3 no-imprimir" method="get" action="<?= url('admin/reportes.php') ?>">
-    <div class="col-6 col-md-3"><label class="form-label small" for="desde">Desde</label><input class="form-control form-control-sm" type="date" id="desde" name="desde" value="<?= e($desde) ?>"></div>
-    <div class="col-6 col-md-3"><label class="form-label small" for="hasta">Hasta</label><input class="form-control form-control-sm" type="date" id="hasta" name="hasta" value="<?= e($hasta) ?>"></div>
-    <div class="col-md-2"><button class="btn btn-sm btn-fc w-100">Aplicar</button></div>
-    <div class="col-md-4 d-flex gap-2 justify-content-md-end">
-        <a class="btn btn-sm btn-light" href="<?= url('admin/reportes.php', ['desde' => $desde, 'hasta' => $hasta, 'exportar' => 'pedidos']) ?>"><i class="bi bi-filetype-csv me-1"></i>Pedidos CSV</a>
-        <a class="btn btn-sm btn-light" href="<?= url('admin/reportes.php', ['desde' => $desde, 'hasta' => $hasta, 'exportar' => 'caja']) ?>"><i class="bi bi-filetype-csv me-1"></i>Caja CSV</a>
+    <div class="col-6 col-lg-2"><label class="form-label small" for="desde">Desde</label><input class="form-control form-control-sm" type="date" id="desde" name="desde" value="<?= e($desde) ?>"></div>
+    <div class="col-6 col-lg-2"><label class="form-label small" for="hasta">Hasta</label><input class="form-control form-control-sm" type="date" id="hasta" name="hasta" value="<?= e($hasta) ?>"></div>
+    <div class="col-lg-2"><button class="btn btn-sm btn-fc w-100">Aplicar</button></div>
+    <div class="col-lg-6 d-flex flex-wrap gap-2 justify-content-lg-end">
+        <a class="btn btn-sm btn-success" href="<?= url('admin/reportes.php', ['desde' => $desde, 'hasta' => $hasta, 'exportar' => 'pedidos']) ?>"><i class="bi bi-file-earmark-excel me-1"></i>Pedidos (Excel)</a>
+        <a class="btn btn-sm btn-success" href="<?= url('admin/reportes.php', ['desde' => $desde, 'hasta' => $hasta, 'exportar' => 'ventas']) ?>"><i class="bi bi-file-earmark-excel me-1"></i>Reporte de ventas (Excel)</a>
         <button class="btn btn-sm btn-light" type="button" data-imprimir><i class="bi bi-printer"></i></button>
     </div>
 </form>
