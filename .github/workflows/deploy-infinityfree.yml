@@ -1,0 +1,45 @@
+# Despliegue automático a InfinityFree (firecat.infinityfreeapp.com)
+# Cada push a "main" sube por FTP los archivos que cambiaron a /htdocs.
+# Credenciales en GitHub: Settings → Secrets and variables → Actions
+#   FTP_USERNAME  (ej. if0_43160697)
+#   FTP_PASSWORD  (contraseña de la cuenta de hosting)
+name: Desplegar en InfinityFree
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # permite lanzarlo a mano desde la pestaña Actions
+
+concurrency:
+  group: deploy-infinityfree
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Subir por FTP a InfinityFree
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ftpupload.net
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftps
+          server-dir: /htdocs/
+          # Nunca se tocan en el servidor: configuración real, imágenes subidas,
+          # logs, ni archivos que solo sirven para desarrollo.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            config/config.local.php
+            uploads/**
+            storage/**
+            tests/**
+            docs/**
+            database.sql
+            README.md

@@ -259,3 +259,16 @@ Los datos de demostración incluyen ~3 meses de historia: 208 pedidos (FC-000001
 - Carrito de invitado que se fusione al iniciar sesión.
 - Autenticación de dos factores para administradores y registro de auditoría de acciones del panel.
 - Pruebas unitarias con PHPUnit e integración continua.
+
+## Despliegue en InfinityFree
+
+El sitio en línea (https://firecat.infinityfreeapp.com) se actualiza solo: cada push a `main`
+ejecuta el workflow `.github/workflows/deploy-infinityfree.yml`, que sube por FTP a `/htdocs`
+únicamente los archivos que cambiaron.
+
+- Credenciales: *Settings → Secrets and variables → Actions* → `FTP_USERNAME` y `FTP_PASSWORD`.
+- **Nunca** se suben ni se sobrescriben: `config/config.local.php` (datos reales de la BD),
+  `uploads/` (imágenes subidas desde el panel), `storage/`, `tests/`, `docs/` y `database.sql`.
+- Los cambios de **base de datos** (tablas o columnas nuevas) se aplican a mano en el
+  phpMyAdmin de InfinityFree. Las tablas nuevas deben usar `ENGINE=InnoDB`.
+- InfinityFree no permite `CREATE VIEW` ni las directivas `Options`/`RemoveHandler` en `.htaccess`.
