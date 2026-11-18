@@ -142,7 +142,19 @@ erDiagram
 | `categorias_gasto` | Arriendo, Servicios, Mantenimiento de maquinaria… | `nombre` UNIQUE · `grupo` ENUM(operativo, mantenimiento, otro) |
 | `gastos` | Cada gasto pagado | FK → categoría (RESTRICT) · CHECK `monto > 0` · fecha, método de pago, comprobante |
 
+### Pagos en línea
+
+| Tabla | Propósito | Claves y restricciones destacadas |
+|---|---|---|
+| `pedidos` (columnas nuevas) | Estado del pago e idempotencia | `metodo_pago` + `wompi`, `pse` · `estado_pago` ENUM(no_aplica, pendiente, aprobado, rechazado, anulado, error) · `token_checkout` UNIQUE |
+| `pagos` | Cada intento de pago en Wompi | FK → pedidos (CASCADE) · `referencia` UNIQUE · `transaccion_id` UNIQUE · `monto_centavos` · `estado` (CREADO, PENDING, APPROVED, DECLINED, VOIDED, ERROR) · `fuente_verificacion` (webhook/api) |
+| `pagos_eventos` | Bitácora de webhooks | firma válida o no, resultado, payload, IP |
+
 ## Reglas de negocio e integridad
+
+- **Pago verificado**: `pedidos.estado_pago = 'aprobado'` sólo lo escribe `aplicar_transaccion_wompi()` cuando la
+  transacción viene de un webhook con firma válida o de la API de Wompi, y su referencia, monto y moneda coinciden con
+  `pagos`. Un estado final no retrocede (salvo APPROVED → VOIDED). Al aprobarse, el pedido pasa a *Confirmado*.
 
 - **Precio y costo históricos**: al confirmar un pedido, `pedido_detalle` copia el `precio` del producto **y su costo de
   fabricación** (ficha técnica). Cambios posteriores no alteran pedidos antiguos (el pedido `FC-000201` de la demo se

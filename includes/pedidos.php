@@ -25,6 +25,8 @@ const TRANSICIONES_PEDIDO = [
 const METODOS_PAGO = [
     'contra_entrega' => 'Pago contra entrega',
     'pedido_prueba'  => 'Pedido de prueba (sin pago)',
+    'wompi'          => 'Wompi (sandbox): tarjeta, Nequi, Bancolombia…',
+    'pse'            => 'PSE: débito desde tu cuenta (vía Wompi, sandbox)',
 ];
 
 function estado_pedido_badge(string $estado): string
@@ -93,10 +95,12 @@ function crear_pedido(int $usuarioId, array $entrega): array
             throw new DomainException('El valor con el que pagarás no cubre el total del pedido.');
         }
 
-        consulta('INSERT INTO pedidos (usuario_id, subtotal, costo_envio, total, estado, metodo_pago, pago_con,
+        $enLinea = es_metodo_en_linea($entrega['metodo_pago']);
+        consulta('INSERT INTO pedidos (usuario_id, subtotal, costo_envio, total, estado, metodo_pago, estado_pago, token_checkout, pago_con,
                                        nombre_destinatario, telefono_entrega, direccion_entrega, ciudad_entrega, notas)
-                  VALUES (?, ?, ?, ?, \'pendiente\', ?, ?, ?, ?, ?, ?, ?)', [
-            $usuarioId, $subtotal, $envio, $total, $entrega['metodo_pago'], $pagoCon,
+                  VALUES (?, ?, ?, ?, \'pendiente\', ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+            $usuarioId, $subtotal, $envio, $total, $entrega['metodo_pago'], $enLinea ? 'pendiente' : 'no_aplica',
+            $entrega['token_checkout'] ?? null, $pagoCon,
             $entrega['nombre'], $entrega['telefono'], $entrega['direccion'], $entrega['ciudad'], $entrega['notas'] ?: null,
         ]);
         $pedidoId = (int) $pdo->lastInsertId();

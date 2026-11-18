@@ -104,6 +104,18 @@
     document.querySelectorAll('[data-metodo-pago]').forEach(function (r) { r.addEventListener('change', actualizar); });
     actualizar();
   }
+  // 8b. Datos de PSE: sólo visibles (y enviados) cuando se elige PSE --------
+  var campoPse = document.getElementById('campo-pse');
+  if (campoPse) {
+    var actualizarPse = function () {
+      var sel = document.querySelector('[data-metodo-pago]:checked');
+      var mostrar = !!sel && sel.value === 'pse';
+      campoPse.hidden = !mostrar;
+      campoPse.disabled = !mostrar;
+    };
+    document.querySelectorAll('[data-metodo-pago]').forEach(function (r) { r.addEventListener('change', actualizarPse); });
+    actualizarPse();
+  }
 
   // 9. Ficha de producto: combinación talla/color y stock ------------------
   var form = document.getElementById('form-agregar');

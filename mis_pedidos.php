@@ -11,7 +11,7 @@ if (isset(ESTADOS_PEDIDO[$filtroEstado])) {
 }
 $total = (int) valor("SELECT COUNT(*) FROM pedidos p WHERE $where", $params);
 $pag = paginar($total, 10, max(1, get_int('pagina', 1)));
-$pedidos = filas("SELECT p.id, p.codigo, p.total, p.estado, p.fecha_pedido, p.metodo_pago,
+$pedidos = filas("SELECT p.id, p.codigo, p.total, p.estado, p.fecha_pedido, p.metodo_pago, p.estado_pago,
                          (SELECT SUM(d.cantidad) FROM pedido_detalle d WHERE d.pedido_id = p.id) AS unidades,
                          (SELECT pr.imagen FROM pedido_detalle d JOIN productos pr ON pr.id = d.producto_id WHERE d.pedido_id = p.id ORDER BY d.id LIMIT 1) AS imagen
                   FROM pedidos p WHERE $where ORDER BY p.fecha_pedido DESC, p.id DESC
@@ -51,7 +51,7 @@ require __DIR__ . '/includes/header.php';
                             <img src="<?= imagen_url($p['imagen']) ?>" alt="" width="64" height="80" class="rounded-3 object-fit-cover d-none d-sm-block">
                             <div class="flex-grow-1">
                                 <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
-                                    <strong><?= e($p['codigo']) ?></strong> <?= estado_pedido_badge($p['estado']) ?>
+                                    <strong><?= e($p['codigo']) ?></strong> <?= estado_pedido_badge($p['estado']) ?> <?= estado_pago_badge($p) ?>
                                 </div>
                                 <div class="small text-muted-fc"><?= fecha($p['fecha_pedido']) ?> · <?= (int) $p['unidades'] ?> unidad(es) · <?= e(METODOS_PAGO[$p['metodo_pago']] ?? '') ?></div>
                             </div>

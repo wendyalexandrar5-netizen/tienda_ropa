@@ -10,6 +10,11 @@ if (es_post() && post_texto('accion', 20) === 'confirmar') {
         flash('warning', 'Completa primero la información de entrega.');
         redirigir('checkout.php');
     }
+    if (es_metodo_en_linea($datos['metodo_pago'])) {
+        // Los pagos en línea sólo se inician con el botón «Pagar» (pago_iniciar.php).
+        flash('warning', 'Usa el botón «Pagar» para continuar con el pago en línea.');
+        redirigir('checkout.php', ['paso' => 'resumen']);
+    }
     try {
         $pedido = crear_pedido($uid, $datos);
         unset($_SESSION['checkout']);
@@ -44,7 +49,9 @@ $datos = $_SESSION['checkout'] ?? [
     'metodo_pago' => 'contra_entrega',
     'pago_con'    => null,
     'guardar_direccion' => false,
+    'pse'         => ['tipo_persona' => 0, 'tipo_documento' => 'CC', 'documento' => '', 'banco' => ''],
 ];
+$datos['pse'] = ($datos['pse'] ?? []) + ['tipo_persona' => 0, 'tipo_documento' => 'CC', 'documento' => '', 'banco' => ''];
 
 if (es_post() && post_texto('accion', 20) === 'revisar') {
     $datos = [
@@ -56,6 +63,12 @@ if (es_post() && post_texto('accion', 20) === 'revisar') {
         'metodo_pago' => post_texto('metodo_pago', 20),
         'pago_con'    => post_texto('pago_con', 12),
         'guardar_direccion' => isset($_POST['guardar_direccion']),
+        'pse'         => [
+            'tipo_persona'   => post_int('pse_tipo_persona', -1),
+            'tipo_documento' => post_texto('pse_tipo_documento', 5),
+            'documento'      => preg_replace('/[\s.\-]/', '', post_texto('pse_documento', 25)),
+            'banco'          => post_texto('pse_banco', 10),
+        ],
     ];
     $v = (new Validador())
         ->requerido('nombre', $datos['nombre'], 'El nombre de quien recibe')->longitud('nombre', $datos['nombre'], 3, 120, 'El nombre')
@@ -71,6 +84,37 @@ if (es_post() && post_texto('accion', 20) === 'revisar') {
         }
     }
     $datos['pago_con'] = ($datos['metodo_pago'] === 'contra_entrega' && is_numeric($datos['pago_con'])) ? (float) $datos['pago_con'] : null;
+
+    // Pagos en línea: el método debe estar configurado; PSE exige además los datos que pide la API de Wompi.
+    if (es_metodo_en_linea($datos['metodo_pago']) && ($problema = problema_metodo($datos['metodo_pago'])) !== null) {
+        $v->agregar('metodo_pago', $problema);
+    } elseif ($datos['metodo_pago'] === 'pse') {
+        $pseForm = pse_datos_formulario();
+        if ($pseForm['error'] !== null) {
+            $v->agregar('metodo_pago', $pseForm['error']);
+        } else {
+            if (!isset(PSE_TIPOS_PERSONA[$datos['pse']['tipo_persona']])) {
+                $v->agregar('pse_tipo_persona', 'Selecciona el tipo de persona.');
+            }
+            if (!isset(PSE_TIPOS_DOCUMENTO[$datos['pse']['tipo_documento']])) {
+                $v->agregar('pse_tipo_documento', 'Selecciona el tipo de documento.');
+            }
+            if (!preg_match('/^[0-9A-Za-z]{5,20}$/', $datos['pse']['documento'])) {
+                $v->agregar('pse_documento', 'Ingresa el número de documento del titular de la cuenta (5 a 20 caracteres, sin puntos).');
+            }
+            if (!isset($pseForm['bancos'][$datos['pse']['banco']])) {
+                $v->agregar('pse_banco', 'Selecciona tu banco.');
+            }
+            if (!isset($_POST['acepto_wompi'])) {
+                $v->agregar('acepto_wompi', 'Debes aceptar los términos y la política de datos de Wompi para pagar con PSE.');
+            }
+        }
+    }
+    if (!es_metodo_en_linea($datos['metodo_pago'])) {
+        $datos['pse'] = ['tipo_persona' => 0, 'tipo_documento' => 'CC', 'documento' => '', 'banco' => ''];
+    }
+    // Identificador único de esta compra: une las dos pestañas y evita pedidos duplicados.
+    $datos['token'] = bin2hex(random_bytes(16));
 
     if ($v->ok()) {
         $_SESSION['checkout'] = $datos;
@@ -134,17 +178,56 @@ require __DIR__ . '/includes/header.php';
                 </div>
 
                 <h2 class="h5 fw-bold mt-4 mb-3">Método de pago</h2>
+                <?php
+                $descripciones = [
+                    'contra_entrega' => 'Pagas en efectivo cuando recibes el pedido.',
+                    'pedido_prueba'  => 'Genera un pedido de demostración sin cobro real.',
+                    'wompi'          => 'Al pulsar «Pagar» se abre el checkout real de Wompi (ambiente de pruebas) en una pestaña nueva.',
+                    'pse'            => 'Al pulsar «Pagar» Wompi te lleva al flujo PSE de tu banco en una pestaña nueva (ambiente de pruebas).',
+                ];
+                $pseForm = $datos['metodo_pago'] === 'pse' || pse_problema() === null ? pse_datos_formulario() : ['bancos' => [], 'terminos_url' => '', 'datos_url' => '', 'error' => pse_problema()];
+                ?>
                 <div class="d-grid gap-2">
-                    <?php foreach (METODOS_PAGO as $clave => $texto): ?>
-                        <label class="caja p-3 d-flex gap-3 align-items-start" for="mp-<?= e($clave) ?>">
-                            <input class="form-check-input mt-1" type="radio" name="metodo_pago" id="mp-<?= e($clave) ?>" value="<?= e($clave) ?>" <?= $datos['metodo_pago'] === $clave ? 'checked' : '' ?> data-metodo-pago>
+                    <?php foreach (METODOS_PAGO as $clave => $texto):
+                        $problema = $clave === 'pse' ? $pseForm['error'] : problema_metodo($clave); ?>
+                        <label class="caja p-3 d-flex gap-3 align-items-start<?= $problema ? ' opacity-75' : '' ?>" for="mp-<?= e($clave) ?>">
+                            <input class="form-check-input mt-1" type="radio" name="metodo_pago" id="mp-<?= e($clave) ?>" value="<?= e($clave) ?>" <?= $datos['metodo_pago'] === $clave && !$problema ? 'checked' : '' ?> <?= $problema ? 'disabled' : '' ?> data-metodo-pago>
                             <span>
-                                <strong class="d-block"><?= e($texto) ?></strong>
-                                <small class="text-muted-fc"><?= $clave === 'contra_entrega' ? 'Pagas en efectivo cuando recibes el pedido.' : 'Genera un pedido de demostración sin cobro real.' ?></small>
+                                <strong class="d-block"><?= e($texto) ?><?php if (es_metodo_en_linea($clave)): ?> <i class="bi bi-box-arrow-up-right small"></i><?php endif; ?></strong>
+                                <small class="text-muted-fc"><?= e($descripciones[$clave]) ?></small>
+                                <?php if ($problema): ?><small class="d-block text-danger mt-1"><i class="bi bi-exclamation-circle me-1"></i><?= e($problema) ?></small><?php endif; ?>
                             </span>
                         </label>
                     <?php endforeach; ?>
                 </div>
+                <?php if (!$pseForm['error'] && $pseForm['bancos']): $pse = $datos['pse']; ?>
+                    <fieldset class="caja mt-3" id="campo-pse">
+                        <legend class="h6 fw-bold">Datos para PSE <span class="small fw-normal text-muted-fc">(los pide Wompi para iniciar el pago)</span></legend>
+                        <div class="row g-2">
+                            <div class="col-sm-6"><label class="form-label small" for="pse_tipo_persona">Tipo de persona</label>
+                                <select class="form-select<?= clase_invalida($errores, 'pse_tipo_persona') ?>" id="pse_tipo_persona" name="pse_tipo_persona">
+                                    <?php foreach (PSE_TIPOS_PERSONA as $k => $t): ?><option value="<?= $k ?>" <?= (int) $pse['tipo_persona'] === $k ? 'selected' : '' ?>><?= e($t) ?></option><?php endforeach; ?></select>
+                                <?= error_campo($errores, 'pse_tipo_persona') ?></div>
+                            <div class="col-sm-6"><label class="form-label small" for="pse_banco">Banco</label>
+                                <select class="form-select<?= clase_invalida($errores, 'pse_banco') ?>" id="pse_banco" name="pse_banco"><option value="">Selecciona tu banco…</option>
+                                    <?php foreach ($pseForm['bancos'] as $cod => $nombreBanco): ?><option value="<?= e($cod) ?>" <?= (string) $pse['banco'] === (string) $cod ? 'selected' : '' ?>><?= e($nombreBanco) ?></option><?php endforeach; ?></select>
+                                <?= error_campo($errores, 'pse_banco') ?></div>
+                            <div class="col-sm-5"><label class="form-label small" for="pse_tipo_documento">Tipo de documento</label>
+                                <select class="form-select<?= clase_invalida($errores, 'pse_tipo_documento') ?>" id="pse_tipo_documento" name="pse_tipo_documento">
+                                    <?php foreach (PSE_TIPOS_DOCUMENTO as $k => $t): ?><option value="<?= e($k) ?>" <?= $pse['tipo_documento'] === $k ? 'selected' : '' ?>><?= e($t) ?></option><?php endforeach; ?></select>
+                                <?= error_campo($errores, 'pse_tipo_documento') ?></div>
+                            <div class="col-sm-7"><label class="form-label small" for="pse_documento">Número de documento del titular</label>
+                                <input class="form-control<?= clase_invalida($errores, 'pse_documento') ?>" id="pse_documento" name="pse_documento" maxlength="20" inputmode="numeric" autocomplete="off" value="<?= e($pse['documento']) ?>">
+                                <?= error_campo($errores, 'pse_documento') ?></div>
+                            <div class="col-12"><div class="form-check">
+                                <input class="form-check-input<?= clase_invalida($errores, 'acepto_wompi') ?>" type="checkbox" id="acepto_wompi" name="acepto_wompi" value="1">
+                                <label class="form-check-label small" for="acepto_wompi">Acepto los <a href="<?= e($pseForm['terminos_url']) ?>" target="_blank" rel="noopener noreferrer">términos y condiciones</a>
+                                    <?php if ($pseForm['datos_url'] !== ''): ?>y la <a href="<?= e($pseForm['datos_url']) ?>" target="_blank" rel="noopener noreferrer">política de tratamiento de datos</a><?php endif; ?> de Wompi.</label>
+                                <?= error_campo($errores, 'acepto_wompi') ?></div></div>
+                        </div>
+                        <p class="small text-muted-fc mb-0 mt-2"><i class="bi bi-shield-lock me-1"></i>Tu documento sólo se envía a Wompi para iniciar el pago; la tienda no lo almacena.</p>
+                    </fieldset>
+                <?php endif; ?>
                 <?= error_campo($errores, 'metodo_pago') ?>
                 <div class="mt-3" id="campo-pago-con">
                     <label class="form-label" for="pago_con">¿Con cuánto pagarás? <span class="text-muted-fc fw-normal">(opcional, para llevar tu cambio)</span></label>
@@ -175,6 +258,9 @@ require __DIR__ . '/includes/header.php';
                 <hr>
                 <div class="caja-titulo mb-2"><i class="bi bi-wallet2 me-1"></i>Pago</div>
                 <div><?= e(METODOS_PAGO[$d['metodo_pago']]) ?></div>
+                <?php if ($d['metodo_pago'] === 'pse' && !empty($d['pse']['banco'])): ?>
+                    <div class="small text-muted-fc">Banco: <?= e(pse_datos_formulario()['bancos'][$d['pse']['banco']] ?? $d['pse']['banco']) ?> · <?= e(PSE_TIPOS_PERSONA[$d['pse']['tipo_persona']] ?? '') ?></div>
+                <?php endif; ?>
                 <?php if ($d['pago_con'] !== null): ?>
                     <div class="small text-muted-fc">Pagarás con <?= precio($d['pago_con']) ?> · Cambio: <strong><?= precio($d['pago_con'] - $resumen['total']) ?></strong></div>
                 <?php endif; ?>
@@ -192,6 +278,27 @@ require __DIR__ . '/includes/header.php';
                     </div>
                 <?php endforeach; ?>
             </div>
+            <?php if (es_metodo_en_linea($d['metodo_pago'])): $tokenCompra = (string) $d['token']; ?>
+                <div class="alert alert-light border mt-4 small mb-3">
+                    <i class="bi bi-window-stack me-1"></i>Al pulsar <strong>Pagar</strong> se abrirá
+                    <?= $d['metodo_pago'] === 'pse' ? 'el flujo <strong>PSE</strong> de tu banco (a través de Wompi)' : 'el <strong>checkout de Wompi</strong>' ?>
+                    en una <strong>pestaña nueva</strong>, y esta pestaña mostrará tu comprobante. Ambiente de <strong>pruebas</strong>: no se realizan cobros reales.
+                </div>
+                <form method="post" action="<?= url('pago_iniciar.php') ?>" id="form-pago-en-linea" data-dos-pestanas
+                      data-comprobante-url="<?= e(url('pago_comprobante.php', ['token' => $tokenCompra])) ?>"
+                      data-ventana="fc_pago_<?= e($tokenCompra) ?>" data-proveedor="<?= $d['metodo_pago'] === 'pse' ? 'PSE' : 'Wompi' ?>">
+                    <?= csrf_campo() ?>
+                    <input type="hidden" name="token" value="<?= e($tokenCompra) ?>">
+                    <input type="hidden" name="modo" value="dos_pestanas">
+                    <div class="d-flex flex-wrap justify-content-between gap-2">
+                        <a class="btn btn-outline-fc" href="<?= url('checkout.php') ?>"><i class="bi bi-arrow-left me-1"></i>Modificar entrega</a>
+                        <button class="btn btn-fc btn-lg" type="submit" id="btn-pagar">
+                            <i class="bi bi-lock me-1"></i>Pagar <?= precio($resumen['total']) ?> con <?= $d['metodo_pago'] === 'pse' ? 'PSE' : 'Wompi' ?>
+                        </button>
+                    </div>
+                    <p class="small text-danger mt-2 mb-0 d-none" id="aviso-ventana" data-aviso-ventana role="alert"></p>
+                </form>
+            <?php else: ?>
             <form method="post" action="<?= url('checkout.php') ?>" class="mt-4" data-cargando>
                 <?= csrf_campo() ?>
                 <input type="hidden" name="accion" value="confirmar">
@@ -203,6 +310,7 @@ require __DIR__ . '/includes/header.php';
                     </button>
                 </div>
             </form>
+            <?php endif; ?>
         <?php endif; ?>
         </div>
         <div class="col-lg-4">
@@ -210,4 +318,4 @@ require __DIR__ . '/includes/header.php';
         </div>
     </div>
 </div>
-<?php require __DIR__ . '/includes/footer.php'; ?>
+<?php $scriptsExtra = ['assets/js/pago.js']; require __DIR__ . '/includes/footer.php'; ?>

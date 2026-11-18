@@ -23,7 +23,7 @@ $sqlWhere = implode(' AND ', $where);
 $base = "FROM pedidos p JOIN usuarios u ON u.id = p.usuario_id WHERE $sqlWhere";
 $totales = fila("SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN p.estado <> 'cancelado' THEN p.total END), 0) AS monto $base", $params);
 $pag = paginar((int) $totales['n'], 15, max(1, get_int('pagina', 1)));
-$pedidos = filas("SELECT p.id, p.codigo, p.total, p.estado, p.metodo_pago, p.fecha_pedido, p.ciudad_entrega,
+$pedidos = filas("SELECT p.id, p.codigo, p.total, p.estado, p.metodo_pago, p.estado_pago, p.fecha_pedido, p.ciudad_entrega,
                          CONCAT(u.nombre, ' ', u.apellido) AS cliente, u.email,
                          (SELECT SUM(d.cantidad) FROM pedido_detalle d WHERE d.pedido_id = p.id) AS unidades
                   $base ORDER BY p.fecha_pedido DESC, p.id DESC LIMIT {$pag['por_pagina']} OFFSET {$pag['offset']}", $params);
@@ -62,7 +62,7 @@ require __DIR__ . '/includes/header.php';
                     <td><?= e($p['cliente']) ?><div class="small text-muted-fc"><?= e($p['email']) ?> · <?= e($p['ciudad_entrega']) ?></div></td>
                     <td class="small text-nowrap"><?= fecha($p['fecha_pedido']) ?></td>
                     <td class="text-center"><?= (int) $p['unidades'] ?></td>
-                    <td class="small"><?= e(METODOS_PAGO[$p['metodo_pago']] ?? '') ?></td>
+                    <td class="small"><?= e(METODOS_PAGO[$p['metodo_pago']] ?? '') ?><div class="mt-1"><?= estado_pago_badge($p) ?></div></td>
                     <td><?= estado_pedido_badge($p['estado']) ?></td>
                     <td class="text-end fw-semibold"><?= precio($p['total']) ?></td>
                     <td class="text-end"><a class="btn btn-sm btn-light" href="<?= url('admin/pedido_detalle.php', ['id' => $p['id']]) ?>" title="Gestionar"><i class="bi bi-chevron-right"></i></a></td>

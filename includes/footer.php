@@ -46,5 +46,7 @@
 
 <script src="<?= asset('assets/vendor/bootstrap/bootstrap.bundle.min.js') ?>"></script>
 <script src="<?= asset('assets/js/app.js') ?>"></script>
+<?php foreach ($scriptsExtra ?? [] as $scriptExtra): ?><script src="<?= asset($scriptExtra) ?>"></script>
+<?php endforeach; ?>
 </body>
 </html>

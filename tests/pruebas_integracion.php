@@ -410,6 +410,7 @@ $adm->get('admin/productos.php');
 $adm->post('admin/productos.php', ['accion' => 'eliminar', 'producto_id' => 1])->seguir();
 prueba('Producto con ventas no se elimina', (int) valor('SELECT COUNT(*) FROM productos WHERE id = 1') === 1 && $adm->contiene('tiene pedidos asociados'));
 $adm->post('admin/productos.php', ['accion' => 'eliminar', 'producto_id' => $nuevoP['id']]);
+clearstatcache();
 prueba('Producto sin ventas eliminado (y su imagen)', !valor('SELECT id FROM productos WHERE id = ?', [$nuevoP['id']]) && !is_file(ROOT_PATH . '/' . $nuevoP['imagen']));
 
 // Categorías
@@ -645,6 +646,81 @@ prueba('Bloqueo temporal tras 5 intentos fallidos', $fb->contiene('Demasiados in
 $fb->post('login.php', ['email' => 'camila@example.com', 'password' => 'Cliente123*']);
 prueba('Durante el bloqueo, ni la contraseña correcta funciona', $fb->contiene('Demasiados intentos'));
 consulta("DELETE FROM intentos_login WHERE email = 'camila@example.com'");
+
+seccion('14. Pagos en línea (Wompi / PSE, sandbox)');
+$pg = new Navegador($BASE);
+$pg->get('login.php');
+$pg->post('login.php', ['email' => 'cliente@firecat.com', 'password' => 'Cliente123*']);
+$pg->get('producto.php?id=1');
+$pg->post('carrito.php', ['accion' => 'agregar', 'variante_id' => 56, 'cantidad' => 1, 'retorno' => 'carrito.php']);
+$entregaPago = ['accion' => 'revisar', 'nombre' => 'Cliente Pagos', 'telefono' => '3001234567', 'direccion' => 'Calle 1 # 2-3', 'ciudad' => 'Cali'];
+$pedidosAntes = (int) valor('SELECT COUNT(*) FROM pedidos');
+$pg->get('webhooks/wompi.php');
+prueba('Webhook sólo acepta POST', $pg->codigo === 405);
+$sinFirma = $pg->post('webhooks/wompi.php', [], false)->codigo;
+prueba('Webhook sin firma → 401 y queda registrado', $sinFirma === 401 && (int) valor('SELECT COUNT(*) FROM pagos_eventos WHERE firma_valida = 0') >= 1);
+$pg->get('pago_estado.php?token=' . str_repeat('a', 32));
+prueba('Estado de un token ajeno/inexistente no revela datos', $pg->codigo === 200 && str_contains($pg->html, '"encontrado":false'));
+$pedidoAjeno = (int) valor("SELECT p.id FROM pedidos p JOIN usuarios u ON u.id = p.usuario_id WHERE u.email <> 'cliente@firecat.com' LIMIT 1");
+$pg->get('pago_estado.php?pedido=' . $pedidoAjeno);
+prueba('No se puede consultar el comprobante de otro cliente', str_contains($pg->html, '"encontrado":false'));
+$pg->get('pago_comprobante.php?pedido=' . $pedidoAjeno);
+prueba('Comprobante de pedido ajeno → 404', $pg->codigo === 404);
+
+if (!wompi_configurado()) {
+    $pg->get('checkout.php');
+    prueba('Sin llaves de Wompi, los métodos en línea aparecen deshabilitados con el motivo', $pg->contiene('id="mp-wompi"') && preg_match('/id="mp-wompi"[^>]*disabled/', $pg->html) === 1
+        && $pg->contiene('PSE no está disponible: la tienda necesita configurar un proveedor compatible con PSE'));
+    $pg->post('checkout.php', $entregaPago + ['metodo_pago' => 'wompi']);
+    prueba('El servidor rechaza Wompi si no está configurado', $pg->contiene('Wompi no está configurado en esta tienda'));
+    $pg->post('checkout.php', $entregaPago + ['metodo_pago' => 'pse']);
+    prueba('El servidor rechaza PSE sin proveedor compatible', $pg->contiene('configurar un proveedor compatible'));
+    prueba('No se creó ningún pedido', (int) valor('SELECT COUNT(*) FROM pedidos') === $pedidosAntes);
+} else {
+    $pg->get('checkout.php');
+    $pg->post('checkout.php', $entregaPago + ['metodo_pago' => 'wompi']);
+    $pg->get('checkout.php?paso=resumen');
+    preg_match('/name="token" value="([a-f0-9]{32})"/', $pg->html, $m);
+    $tokenPago = $m[1] ?? '';
+    prueba('Resumen genera un token de compra y el formulario de dos pestañas', $tokenPago !== '' && $pg->contiene('data-dos-pestanas'));
+    $pg->post('checkout.php', ['accion' => 'confirmar']);
+    prueba('No se puede «confirmar» un pago en línea sin pasar por la pasarela', (int) valor('SELECT COUNT(*) FROM pedidos') === $pedidosAntes);
+    $pg->get('checkout.php?paso=resumen');
+    $pg->post('pago_iniciar.php', ['token' => $tokenPago, 'modo' => 'dos_pestanas']);
+    prueba('Iniciar pago redirige a la pasarela', $pg->codigo === 303 && str_contains($pg->ubicacion, 'pago_ir.php'));
+    $pedidoPago = fila('SELECT * FROM pedidos WHERE token_checkout = ?', [$tokenPago]);
+    prueba('Se crea UN pedido pendiente de pago', $pedidoPago && $pedidoPago['estado_pago'] === 'pendiente' && $pedidoPago['metodo_pago'] === 'wompi');
+    $pg->get('checkout.php');
+    $pg->post('pago_iniciar.php', ['token' => $tokenPago, 'modo' => 'dos_pestanas']);
+    $pg->post('pago_iniciar.php', ['token' => $tokenPago, 'modo' => 'dos_pestanas']);
+    prueba('Reenviar el mismo pago no duplica el pedido ni el intento', (int) valor('SELECT COUNT(*) FROM pedidos WHERE token_checkout = ?', [$tokenPago]) === 1
+        && (int) valor('SELECT COUNT(*) FROM pagos WHERE pedido_id = ?', [$pedidoPago['id']]) === 1);
+    $pg->post('pago_iniciar.php', ['token' => str_repeat('b', 32)]);
+    prueba('Un token desconocido no crea pedidos', (int) valor('SELECT COUNT(*) FROM pedidos') === $pedidosAntes + 1);
+    $pagoP = pago_actual((int) $pedidoPago['id']);
+    $pg->get('pago_ir.php?ref=' . rawurlencode($pagoP['referencia']));
+    prueba('pago_ir lleva a la URL firmada de checkout.wompi.co', $pg->contiene('https://checkout.wompi.co/p/?public-key=pub_test_')
+        && $pg->contiene(wompi_firma_integridad($pagoP['referencia'], (int) $pagoP['monto_centavos'], 'COP')));
+    $pg->get('pago_retorno.php?ref=' . rawurlencode($pagoP['referencia']) . '&id=falso-123&status=APPROVED');
+    prueba('Parámetros de retorno manipulados no aprueban el pago', valor('SELECT estado_pago FROM pedidos WHERE id = ?', [$pedidoPago['id']]) === 'pendiente');
+    $pg->get('pago_estado.php?token=' . $tokenPago);
+    prueba('Comprobante JSON: PAGO PENDIENTE', str_contains($pg->html, 'PAGO PENDIENTE') && str_contains($pg->html, $pedidoPago['codigo']));
+    $txFalsa = ['id' => 'tx-prueba-1', 'reference' => $pagoP['referencia'], 'amount_in_cents' => 100, 'currency' => 'COP', 'status' => 'APPROVED'];
+    prueba('Monto distinto: la transacción no se aplica', aplicar_transaccion_wompi($txFalsa, 'api')['ok'] === false
+        && valor('SELECT estado_pago FROM pedidos WHERE id = ?', [$pedidoPago['id']]) === 'pendiente');
+    $txOk = ['amount_in_cents' => (int) $pagoP['monto_centavos']] + $txFalsa;
+    aplicar_transaccion_wompi($txOk, 'webhook');
+    $pedidoPago = fila('SELECT * FROM pedidos WHERE id = ?', [$pedidoPago['id']]);
+    prueba('Aprobación verificada → PAGADO y pedido confirmado', $pedidoPago['estado_pago'] === 'aprobado' && $pedidoPago['estado'] === 'confirmado');
+    aplicar_transaccion_wompi(['status' => 'DECLINED'] + $txOk, 'webhook');
+    prueba('Un estado final no retrocede (APPROVED no pasa a DECLINED)', valor('SELECT estado_pago FROM pedidos WHERE id = ?', [$pedidoPago['id']]) === 'aprobado');
+    $pg->post('pago_iniciar.php', ['token' => $tokenPago]);
+    prueba('Un pedido ya pagado no inicia otro pago', $pg->contiene('ya está pagado') && (int) valor('SELECT COUNT(*) FROM pagos WHERE pedido_id = ?', [$pedidoPago['id']]) === 1);
+    $pg->get('mis_pedidos.php');
+    prueba('Mis pedidos muestra «PAGADO»', $pg->contiene('PAGADO'));
+}
+$demo = fila("SELECT * FROM pedidos WHERE metodo_pago = 'pedido_prueba' LIMIT 1");
+prueba('info_estado_pago: pedido de prueba = DEMO NO VERIFICADA', !$demo || info_estado_pago($demo)['etiqueta'] === 'DEMO NO VERIFICADA');
 
 // ---------------------------------------------------------------------------
 $total = $ok + count($fallos);

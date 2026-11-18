@@ -199,7 +199,10 @@ CREATE TABLE pedidos (
     total               DECIMAL(12,2) NOT NULL,
     estado              ENUM('pendiente','confirmado','preparado','enviado','entregado','cancelado')
                         NOT NULL DEFAULT 'pendiente',
-    metodo_pago         ENUM('contra_entrega','pedido_prueba') NOT NULL DEFAULT 'contra_entrega',
+    metodo_pago         ENUM('contra_entrega','pedido_prueba','wompi','pse') NOT NULL DEFAULT 'contra_entrega',
+    estado_pago         ENUM('no_aplica','pendiente','aprobado','rechazado','anulado','error') NOT NULL DEFAULT 'no_aplica'
+                        COMMENT 'Sólo pagos en línea; "aprobado" únicamente tras verificación del backend',
+    token_checkout      CHAR(32)      NULL COMMENT 'Identificador único del intento de compra (evita pedidos duplicados)',
     pago_con            DECIMAL(12,2) NULL COMMENT 'Efectivo con el que pagará (para calcular el cambio)',
     nombre_destinatario VARCHAR(120)  NOT NULL,
     telefono_entrega    VARCHAR(20)   NOT NULL,
@@ -213,6 +216,7 @@ CREATE TABLE pedidos (
     KEY idx_pedidos_usuario (usuario_id),
     KEY idx_pedidos_estado_fecha (estado, fecha_pedido),
     KEY idx_pedidos_fecha (fecha_pedido),
+    UNIQUE KEY uq_pedidos_token_checkout (token_checkout),
     CONSTRAINT chk_pedidos_totales CHECK (subtotal >= 0 AND total >= 0 AND costo_envio >= 0),
     CONSTRAINT fk_pedidos_usuario FOREIGN KEY (usuario_id)
         REFERENCES usuarios (id) ON DELETE RESTRICT ON UPDATE CASCADE
@@ -260,6 +264,58 @@ CREATE TABLE pedido_historial (
         REFERENCES pedidos (id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_pedido_historial_usuario FOREIGN KEY (usuario_id)
         REFERENCES usuarios (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- 4b. PAGOS EN LÍNEA (Wompi sandbox: Web Checkout y PSE)
+-- -----------------------------------------------------------------------------
+-- Intentos de pago en línea (Wompi Web Checkout o PSE vía Wompi). Un pedido puede tener
+-- varios intentos (p. ej. un pago rechazado y luego un reintento); cada uno con referencia única.
+CREATE TABLE pagos (
+    id                  INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    pedido_id           INT UNSIGNED  NOT NULL,
+    proveedor           ENUM('wompi') NOT NULL DEFAULT 'wompi',
+    metodo              ENUM('wompi','pse') NOT NULL,
+    ambiente            ENUM('sandbox') NOT NULL DEFAULT 'sandbox',
+    referencia          VARCHAR(60)   NOT NULL,
+    monto_centavos      BIGINT UNSIGNED NOT NULL,
+    moneda              CHAR(3)       NOT NULL DEFAULT 'COP',
+    estado              ENUM('CREADO','PENDING','APPROVED','DECLINED','VOIDED','ERROR') NOT NULL DEFAULT 'CREADO',
+    transaccion_id      VARCHAR(64)   NULL COMMENT 'Id de la transacción en Wompi (sólo si el proveedor lo confirma)',
+    medio_wompi         VARCHAR(40)   NULL COMMENT 'payment_method_type reportado por Wompi (CARD, NEQUI, PSE…)',
+    banco_pse           VARCHAR(120)  NULL,
+    url_pago            VARCHAR(1500) NULL COMMENT 'URL del checkout externo generada por el servidor',
+    mensaje             VARCHAR(255)  NULL,
+    verificado_en       DATETIME      NULL,
+    fuente_verificacion ENUM('webhook','api') NULL,
+    ultima_consulta     DATETIME      NULL,
+    fecha_creacion      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_pagos_referencia (referencia),
+    UNIQUE KEY uq_pagos_transaccion (transaccion_id),
+    KEY idx_pagos_pedido (pedido_id, id),
+    CONSTRAINT fk_pagos_pedido FOREIGN KEY (pedido_id)
+        REFERENCES pedidos (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bitácora de eventos recibidos del proveedor (webhooks), válidos o no
+CREATE TABLE pagos_eventos (
+    id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    pago_id        INT UNSIGNED NULL,
+    proveedor      VARCHAR(20)  NOT NULL DEFAULT 'wompi',
+    tipo_evento    VARCHAR(60)  NULL,
+    transaccion_id VARCHAR(64)  NULL,
+    estado         VARCHAR(20)  NULL,
+    firma_valida   TINYINT(1)   NOT NULL DEFAULT 0,
+    resultado      VARCHAR(255) NULL,
+    payload        MEDIUMTEXT   NULL,
+    ip             VARCHAR(45)  NULL,
+    fecha          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_pagos_eventos_pago (pago_id),
+    CONSTRAINT fk_pagos_eventos_pago FOREIGN KEY (pago_id)
+        REFERENCES pagos (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------

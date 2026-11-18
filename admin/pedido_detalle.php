@@ -9,6 +9,18 @@ if (!$pedido) {
     error_404('El pedido no existe.');
 }
 
+if (es_post() && post_texto('accion', 20) === 'verificar_pago') {
+    $pagoV = pago_actual($id);
+    if (!$pagoV) {
+        flash('warning', 'Este pedido no tiene intentos de pago en línea.');
+    } else {
+        $pagoV = verificar_pago($pagoV, null, true);
+        $pedidoV = fila('SELECT * FROM pedidos WHERE id = ?', [$id]);
+        flash('info', 'Consulta a Wompi realizada. Estado del intento ' . $pagoV['referencia'] . ': ' . $pagoV['estado']
+            . ' · Estado de pago del pedido: ' . info_estado_pago($pedidoV)['etiqueta'] . '.');
+    }
+    redirigir('admin/pedido_detalle.php', ['id' => $id]);
+}
 if (es_post()) {
     $nuevo = post_texto('estado', 20);
     try {
@@ -113,8 +125,34 @@ require __DIR__ . '/includes/header.php';
                 <?php if ($pedido['notas']): ?><div class="text-muted-fc mt-1">Nota: <?= e($pedido['notas']) ?></div><?php endif; ?>
                 <hr>
                 <div><i class="bi bi-wallet2 me-1"></i><?= e(METODOS_PAGO[$pedido['metodo_pago']] ?? '') ?></div>
+                <div class="mt-1"><?= estado_pago_badge($pedido) ?></div>
             </div>
         </div>
+        <?php if (es_metodo_en_linea($pedido['metodo_pago'])): $intentos = filas('SELECT * FROM pagos WHERE pedido_id = ? ORDER BY id DESC', [$id]); ?>
+        <div class="tarjeta-admin">
+            <div class="cabecera"><h2>Pagos en línea (Wompi sandbox)</h2></div>
+            <div class="cuerpo small">
+                <?php if (!$intentos): ?><p class="text-muted-fc mb-2">Aún no hay intentos de pago.</p><?php endif; ?>
+                <?php foreach ($intentos as $it): ?>
+                    <div class="border rounded-3 p-2 mb-2">
+                        <div class="d-flex justify-content-between gap-2"><strong class="text-break"><?= e($it['referencia']) ?></strong><span class="badge text-bg-light border"><?= e($it['estado']) ?></span></div>
+                        <div class="text-muted-fc"><?= e(strtoupper($it['metodo'])) ?> · <?= precio($it['monto_centavos'] / 100) ?> · <?= fecha($it['fecha_creacion']) ?></div>
+                        <?php if ($it['transaccion_id']): ?><div>Transacción: <?= e($it['transaccion_id']) ?></div><?php endif; ?>
+                        <?php if ($it['verificado_en']): ?><div>Verificado: <?= fecha($it['verificado_en']) ?> (<?= e($it['fuente_verificacion']) ?>)</div><?php endif; ?>
+                        <?php if ($it['mensaje']): ?><div class="text-muted-fc"><?= e($it['mensaje']) ?></div><?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+                <?php if ($intentos): ?>
+                <form method="post" action="<?= url('admin/pedido_detalle.php') ?>" class="no-imprimir">
+                    <?= csrf_campo() ?>
+                    <input type="hidden" name="pedido_id" value="<?= (int) $id ?>">
+                    <input type="hidden" name="accion" value="verificar_pago">
+                    <button class="btn btn-sm btn-outline-fc w-100" type="submit"><i class="bi bi-arrow-repeat me-1"></i>Verificar estado con Wompi</button>
+                </form>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 <?php require __DIR__ . '/includes/footer.php'; ?>

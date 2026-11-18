@@ -66,7 +66,8 @@ Las contraseñas **no** están en el código PHP: en `database.sql` sólo existe
 - Carrito persistente en BD: agregar (también desde la tarjeta del catálogo), cambiar cantidades, eliminar, vaciar,
   subtotal, envío (gratis desde un monto configurable) y total.
 - Checkout en 4 pasos: Carrito → Entrega → Resumen → Confirmación. *Pago contra entrega* (con cálculo del cambio,
-  heredado del módulo de caja original) o *Pedido de prueba*.
+  heredado del módulo de caja original), *Pedido de prueba* (se marca **DEMO NO VERIFICADA**) y pagos en línea
+  **Wompi Web Checkout** y **PSE vía Wompi**, ambos en el **sandbox** de Wompi y en dos pestañas (ver sección 12).
 - Registro, login, logout, recuperación de contraseña por enlace con token de un solo uso, cambio de contraseña.
 - Perfil editable, historial de pedidos con filtro por estado, detalle con línea de tiempo, cancelación de pedidos
   pendientes y comprobante imprimible / PDF.
@@ -130,6 +131,9 @@ Las contraseñas **no** están en el código PHP: en `database.sql` sólo existe
 tienda_ropa/
 ├── index.php, productos.php, producto.php, categorias.php     ← tienda
 ├── carrito.php, checkout.php, pedido_confirmado.php
+├── pago_iniciar.php, pago_ir.php, pago_retorno.php             ← pago en línea (pestaña de la pasarela)
+├── pago_comprobante.php, pago_estado.php                        ← comprobante en vivo (segunda pestaña)
+├── webhooks/wompi.php                                           ← eventos firmados de Wompi
 ├── login.php, registro.php, logout.php, recuperar.php, restablecer.php, cambiar_password.php
 ├── perfil.php, mis_pedidos.php, pedido.php                     ← cuenta del cliente
 ├── admin/
@@ -148,20 +152,22 @@ tienda_ropa/
 │   ├── sesion.php, csrf.php, auth.php (autenticación y roles), validacion.php, errores.php, funciones.php
 │   ├── catalogo.php, carrito.php, inventario.php, pedidos.php, subidas.php   ← lógica de negocio
 │   ├── fabricacion.php, finanzas.php, xlsx.php (generador de Excel)
+│   ├── pagos.php         ← Wompi/PSE: firmas, API, verificación, webhooks, estados de pago
 │   ├── header.php, footer.php                                                 ← plantilla de la tienda
 │   └── partials/ (tarjeta de producto, alertas, paginación, error, auth…)
 ├── config/ config.php, config.local.example.php
 ├── assets/ css/, js/, img/ (marca y productos), vendor/ (Bootstrap, Icons, Chart.js)
 ├── uploads/              ← imágenes subidas (PHP deshabilitado por .htaccess)
 ├── storage/logs/         ← registros de errores, seguridad y "correos" simulados
-├── tests/pruebas_integracion.php
+├── tests/ pruebas_integracion.php, navegador_pagos_dos_pestanas.js, mock_wompi/ (simulador sólo para pruebas)
+├── migraciones/002_pagos_en_linea.sql   ← actualiza una BD existente sin perder datos
 ├── docs/ AUDITORIA.md, BASE_DE_DATOS.md
 └── database.sql
 ```
 
 ## 7. Base de datos
 
-27 tablas normalizadas + 1 vista. Diagrama entidad-relación, diccionario de datos y reglas de integridad en
+29 tablas normalizadas + 1 vista. Diagrama entidad-relación, diccionario de datos y reglas de integridad en
 [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md). Resumen:
 
 | Tabla | Descripción |
@@ -182,6 +188,7 @@ tienda_ropa/
 | `fichas_tecnicas`, `ficha_materiales` | Receta de cada prenda: materiales con merma, mano de obra e indirectos |
 | `ordenes_produccion`, `produccion_consumos` | Órdenes de producción y consumo real de materiales (con su costo) |
 | `categorias_gasto`, `gastos` | Gastos operativos, de mantenimiento y otros |
+| `pagos`, `pagos_eventos` | Intentos de pago en Wompi/PSE (referencia, monto, transacción, estado verificado) y bitácora de webhooks |
 
 ## 8. Seguridad implementada
 
@@ -201,6 +208,7 @@ tienda_ropa/
 | Open redirect | El parámetro `retorno` sólo acepta rutas internas `*.php` |
 | Errores | En producción no se muestran rutas, SQL ni trazas: página amigable + registro en `storage/logs/app.log` |
 | Cabeceras | CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` |
+| Pagos en línea | Firma de integridad SHA-256 en el checkout; webhooks validados con el secreto de eventos; el monto, la moneda y la referencia se comparan con la BD; los parámetros de la URL de retorno nunca aprueban un pago; sólo se aceptan llaves `*_test_*` |
 | Exportación a Excel | Generador `.xlsx` propio (`includes/xlsx.php`, sin librerías externas); los textos se escriben como texto, nunca como fórmula, evitando la inyección de fórmulas; sólo lo descargan administradores |
 
 **Recordar sesión:** no se implementó a propósito; un "recordarme" seguro requiere tokens rotativos
@@ -220,13 +228,15 @@ Con Apache y MySQL encendidos y la base recién importada:
 php tests/pruebas_integracion.php http://localhost/tienda_ropa
 ```
 
-La suite ejecuta **211 comprobaciones por HTTP real** y verifica el estado de la base de datos: registro, login,
+La suite ejecuta **más de 220 comprobaciones por HTTP real** y verifica el estado de la base de datos: registro, login,
 logout, login incorrecto, búsqueda, filtros, carrito, cambio de cantidades, checkout, creación del pedido, historial,
 perfil, recuperación de contraseña, CRUD del panel, inventario, flujo de estados, usuarios, reportes y exportación a Excel, proveedores, compras con costo promedio ponderado, fichas técnicas, producción
 (consumo exacto de materiales, entrada a la tienda, ROLLBACK si faltan materiales, cancelación con devolución),
 gastos y cálculo de utilidad, SQL Injection,
 XSS, CSRF, IDOR, acceso de clientes al panel, manipulación de precios y cantidades, compra sin stock, `ROLLBACK`
-cuando el stock cambia durante el checkout, subida de un PHP disfrazado de imagen y fuerza bruta.
+cuando el stock cambia durante el checkout, subida de un PHP disfrazado de imagen, fuerza bruta y pagos en línea
+(webhook sin firma, comprobantes ajenos, métodos deshabilitados sin configuración; con el simulador: pedido único por
+token, URL firmada, monto alterado, estados finales que no retroceden).
 Las pruebas modifican datos: **vuelva a importar `database.sql`** al terminar.
 
 ## 10. Guía rápida de demostración
@@ -252,10 +262,78 @@ Los datos de demostración incluyen ~3 meses de historia: 208 pedidos (FC-000001
 ## 11. Mejoras futuras
 
 - Envío real de correos (PHPMailer + SMTP) para recuperación de contraseña y avisos de estado.
-- Pasarela de pagos (PSE, tarjetas) con webhooks.
+- Pasar Wompi a producción (llaves `prv_prod`, HTTPS obligatorio) y reembolsos automáticos.
 - Galería de varias imágenes por producto y precios de oferta con vigencia.
 - Fichas técnicas con consumo distinto por talla, cuentas por pagar a proveedores y conciliación bancaria.
 - "Recordarme" seguro con tokens rotativos y verificación de correo al registrarse.
 - Carrito de invitado que se fusione al iniciar sesión.
 - Autenticación de dos factores para administradores y registro de auditoría de acciones del panel.
 - Pruebas unitarias con PHPUnit e integración continua.
+
+## 12. Pagos en línea: Wompi y PSE (sandbox, dos pestañas)
+
+La tienda **no** implementa una pasarela propia ni formularios que imiten a Wompi o PSE:
+
+- **Wompi:** se abre el **Web Checkout real** (`https://checkout.wompi.co/p/`) con la llave pública de pruebas, el monto
+  en centavos, la referencia del intento y la **firma de integridad** `SHA256(referencia + monto + moneda + secreto)`.
+- **PSE:** el servidor crea la transacción PSE con la **API de Wompi** (banco, tipo y número de documento, aceptación de
+  términos) y abre la **URL del banco que entrega Wompi** (`async_payment_url`). Si no hay un proveedor compatible
+  configurado, PSE aparece deshabilitado con el mensaje *«PSE no está disponible: la tienda necesita configurar un
+  proveedor compatible con PSE (por ejemplo, Wompi)»*.
+
+**Flujo en el navegador.** Al pulsar *Pagar* en el resumen:
+1. **Pestaña 1 (nueva):** la pasarela real. Nunca se cierra sola; al terminar, Wompi la devuelve a `pago_retorno.php`,
+   que también muestra el comprobante.
+2. **Pestaña 2 (la actual):** pantalla de espera con el logo (*«Estamos procesando tu solicitud de pago. En unos segundos
+   podrás consultar el comprobante de tu pedido»*). A los **5 s** (sólo presentación) carga el comprobante desde la BD:
+   número de pedido, cliente, productos, total, método, fecha, referencia, ID de transacción y estado. Mientras esté
+   pendiente consulta al servidor cada pocos segundos y se actualiza **sin recargar**.
+3. Si el navegador bloquea la pestaña nueva, el pago continúa en la misma pestaña.
+
+**Estados.** «PAGADO» (*¡Pago confirmado exitosamente!*) **sólo** cuando el backend verificó la aprobación con Wompi
+(webhook con firma válida o consulta servidor→API con referencia, monto y moneda iguales). Si no: «PAGO PENDIENTE»
+(*Tu solicitud de pago fue recibida y está pendiente de confirmación*), «RECHAZADO»/«ANULADO»/«ERROR» (*No fue posible
+completar el pago*, con botón **Reintentar** sobre el mismo pedido) o «DEMO NO VERIFICADA» para pedidos de prueba.
+
+**Sin duplicados.** Cada resumen genera un token único (`pedidos.token_checkout` UNIQUE); reenviar, recargar o
+reintentar reutiliza el mismo pedido y, si sigue vigente, el mismo intento de pago.
+
+### Configuración (sandbox)
+
+1. Cree una cuenta en [comercios.wompi.co](https://comercios.wompi.co) y, en modo **Pruebas**, copie las 4 llaves.
+2. Cree `config/config.local.php` (no se sube a Git) a partir de `config.local.example.php`:
+
+```php
+'pagos' => [
+    'wompi' => [
+        'llave_publica'      => 'pub_test_…',
+        'llave_privada'      => 'prv_test_…',   // permite buscar la transacción por referencia
+        'secreto_integridad' => 'test_integrity_…',
+        'secreto_eventos'    => 'test_events_…',
+    ],
+    'pse_proveedor' => 'wompi',                   // habilita PSE
+    'url_publica'   => 'https://xxxx.ngrok-free.app/tienda_ropa',
+],
+```
+
+3. Para recibir **webhooks** en XAMPP exponga Apache con un túnel (p. ej. `ngrok http 80`), ponga esa URL en
+   `url_publica` y registre en el panel de Wompi (Pruebas → URL de eventos): `https://xxxx.ngrok-free.app/tienda_ropa/webhooks/wompi.php`.
+   Sin túnel el flujo funciona igual: el comprobante consulta el estado a la API de Wompi desde el servidor.
+4. Si ya tenía la BD instalada, ejecute `migraciones/002_pagos_en_linea.sql` en phpMyAdmin (conserva los datos).
+5. Datos de prueba de Wompi: tarjeta `4242 4242 4242 4242` (aprobada) / `4111 1111 1111 1111` (rechazada);
+   en PSE el banco *«Banco que aprueba»* / *«Banco que rechaza»* del sandbox.
+
+### Probar sin Internet (simulador)
+
+`tests/mock_wompi/router.php` imita la API sandbox (sólo para pruebas automáticas, la tienda no lo usa):
+
+```bash
+php -S 127.0.0.1:8099 tests/mock_wompi/router.php
+# config.local.php temporal: llaves pub_test_mock / prv_test_mock / test_integrity_mock / test_events_mock,
+# 'api_url' => 'http://127.0.0.1:8099/v1', 'pse_proveedor' => 'wompi'
+node tests/navegador_pagos_dos_pestanas.js http://localhost/tienda_ropa
+```
+
+La prueba de navegador (Playwright) verifica las dos pestañas: URL real y firmada de Wompi, espera de 5 s, estado
+pendiente, rechazo de webhook sin firma y de URL de retorno manipulada, actualización en vivo a PAGADO por webhook
+firmado, PSE rechazado → reintento sobre el mismo pedido, y el caso de ventana emergente bloqueada.

@@ -8,4 +8,16 @@ return [
         'pass' => '',
     ],
     // 'base_url' => '/tienda_ropa',
+
+    // Pagos en línea con Wompi (SÓLO llaves de PRUEBAS de https://comercios.wompi.co)
+    // 'pagos' => [
+    //     'wompi' => [
+    //         'llave_publica'      => 'pub_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    //         'llave_privada'      => 'prv_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    //         'secreto_integridad' => 'test_integrity_xxxxxxxxxxxxxxxxxxxxxxxx',
+    //         'secreto_eventos'    => 'test_events_xxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    //     ],
+    //     'pse_proveedor' => 'wompi',
+    //     'url_publica'   => 'https://xxxx.ngrok-free.app/tienda_ropa',
+    // ],
 ];

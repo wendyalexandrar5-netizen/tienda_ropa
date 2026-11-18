@@ -11,7 +11,7 @@ AddDefaultCharset UTF-8
 <IfModule mod_rewrite.c>
     RewriteEngine On
     # Carpetas internas que nunca deben servirse directamente
-    RewriteRule ^(config|includes|storage|tests|docs|admin/includes|proyecto_original)(/|$) - [F,L]
+    RewriteRule ^(config|includes|storage|tests|docs|admin/includes|proyecto_original|migraciones)(/|$) - [F,L]
 </IfModule>
 
 ErrorDocument 403 "Acceso denegado"

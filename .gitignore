@@ -7,3 +7,5 @@ uploads/categorias/*
 !uploads/categorias/.gitkeep
 .DS_Store
 Thumbs.db
+storage/cache/*
+!storage/cache/.gitkeep

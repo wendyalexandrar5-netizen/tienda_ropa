@@ -33,7 +33,12 @@ require_once __DIR__ . '/subidas.php';
 
 configurar_errores();
 
-if (PHP_SAPI !== 'cli') {
+require_once __DIR__ . '/pagos.php';
+
+// Los endpoints de máquina a máquina (webhooks del proveedor de pagos) definen
+// SIN_SESION antes de incluir este archivo: no usan cookies ni token CSRF porque
+// se autentican verificando la firma criptográfica del proveedor.
+if (PHP_SAPI !== 'cli' && !defined('SIN_SESION')) {
     enviar_cabeceras_seguridad();
     iniciar_sesion_segura();
 

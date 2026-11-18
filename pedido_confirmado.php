@@ -24,6 +24,8 @@ require __DIR__ . '/includes/header.php';
                 <div class="estado-vacio bg-transparent p-0 mb-3"><div class="icono bg-warning-subtle"><i class="bi bi-bag-check-fill"></i></div></div>
                 <h1 class="h2">¡Gracias por tu compra, <?= e($usuario['nombre']) ?>!</h1>
                 <p class="text-muted-fc mb-1">Tu pedido <strong class="text-dark"><?= e($pedido['codigo']) ?></strong> fue registrado correctamente.</p>
+                <p class="mb-2"><?= estado_pago_badge($pedido) ?></p>
+                <?php if ($pedido['metodo_pago'] === 'pedido_prueba'): ?><p class="small text-muted-fc">Pedido de demostración: no hubo pago real ni verificación de un proveedor.</p><?php endif; ?>
                 <p class="text-muted-fc">Te avisaremos cuando cambie de estado. Total a pagar: <strong class="text-dark"><?= precio($pedido['total']) ?></strong>
                     <?php if ($pedido['pago_con'] !== null): ?> · Cambio: <strong class="text-dark"><?= precio((float) $pedido['pago_con'] - (float) $pedido['total']) ?></strong><?php endif; ?></p>
                 <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">

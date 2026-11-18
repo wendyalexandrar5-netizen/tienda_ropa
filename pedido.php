@@ -14,6 +14,10 @@ if (es_post() && post_texto('accion', 20) === 'cancelar') {
         if ($pedido['estado'] !== 'pendiente') {
             throw new DomainException('Sólo puedes cancelar pedidos que estén pendientes. Contáctanos para ayudarte.');
         }
+        if (es_metodo_en_linea($pedido['metodo_pago']) && in_array($pedido['estado_pago'], ['pendiente', 'aprobado'], true)
+            && pago_actual((int) $pedido['id']) !== null && pago_actual((int) $pedido['id'])['estado'] !== 'CREADO') {
+            throw new DomainException('Este pedido tiene un pago en línea en proceso con Wompi. Espera su confirmación o contáctanos para cancelarlo.');
+        }
         cambiar_estado_pedido((int) $pedido['id'], 'cancelado', (int) $usuario['id'], 'Cancelado por el cliente');
         flash('success', "El pedido {$pedido['codigo']} fue cancelado.");
     } catch (DomainException $e) {
@@ -44,7 +48,7 @@ require __DIR__ . '/includes/header.php';
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
                 <div>
                     <h1 class="h2 mb-1">Pedido <?= e($pedido['codigo']) ?></h1>
-                    <div class="text-muted-fc"><?= fecha($pedido['fecha_pedido']) ?> · <?= estado_pedido_badge($pedido['estado']) ?></div>
+                    <div class="text-muted-fc"><?= fecha($pedido['fecha_pedido']) ?> · <?= estado_pedido_badge($pedido['estado']) ?> <?= estado_pago_badge($pedido) ?></div>
                 </div>
                 <div class="d-flex gap-2 no-imprimir">
                     <button class="btn btn-outline-fc" type="button" data-imprimir><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>
@@ -104,6 +108,11 @@ require __DIR__ . '/includes/header.php';
                         <?php if ($pedido['notas']): ?><div class="small text-muted-fc mt-2">Nota: <?= e($pedido['notas']) ?></div><?php endif; ?>
                         <hr>
                         <div class="small"><i class="bi bi-wallet2 me-1"></i><?= e(METODOS_PAGO[$pedido['metodo_pago']] ?? '') ?></div>
+                        <div class="small mt-1"><?= estado_pago_badge($pedido) ?></div>
+                        <?php if (es_metodo_en_linea($pedido['metodo_pago'])): $pagoPedido = pago_actual((int) $pedido['id']); ?>
+                            <?php if ($pagoPedido && $pagoPedido['transaccion_id']): ?><div class="small text-muted-fc mt-1">Transacción: <?= e($pagoPedido['transaccion_id']) ?></div><?php endif; ?>
+                            <a class="btn btn-sm btn-outline-fc mt-2 no-imprimir" href="<?= url('pago_comprobante.php', ['pedido' => $pedido['id']]) ?>"><i class="bi bi-receipt me-1"></i>Ver comprobante de pago</a>
+                        <?php endif; ?>
                     </div>
                     <div class="caja">
                         <div class="caja-titulo"><i class="bi bi-clock-history me-1"></i>Seguimiento</div>
