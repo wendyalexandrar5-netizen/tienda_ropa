@@ -66,8 +66,10 @@ $responder([
     ],
     'pago' => $info + [
         'en_linea'        => es_metodo_en_linea($pedido['metodo_pago']),
-        'proveedor'       => $pagoMostrar ? ($pagoMostrar['metodo'] === 'pse' ? 'PSE vía Wompi' : 'Wompi Web Checkout') : null,
-        'ambiente'        => $pagoMostrar ? 'Sandbox de Wompi (pruebas, sin dinero real)' : null,
+        'proveedor'       => $pagoMostrar ? ($pedido['estado_pago'] === 'no_aplica'
+            ? ($pagoMostrar['metodo'] === 'pse' ? 'PSE (enlace de demostración)' : 'Wompi (enlace de demostración)')
+            : ($pagoMostrar['metodo'] === 'pse' ? 'PSE vía Wompi' : 'Wompi Web Checkout')) : null,
+        'ambiente'        => $pagoMostrar ? ($pedido['estado_pago'] === 'no_aplica' ? 'Demostración: sin cobro ni verificación' : 'Sandbox de Wompi (pruebas, sin dinero real)') : null,
         'referencia'      => $pagoMostrar['referencia'] ?? null,
         'transaccion_id'  => $pagoMostrar['transaccion_id'] ?? null,
         'medio'           => $pagoMostrar['medio_wompi'] ?? null,

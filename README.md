@@ -270,7 +270,13 @@ Los datos de demostración incluyen ~3 meses de historia: 208 pedidos (FC-000001
 - Autenticación de dos factores para administradores y registro de auditoría de acciones del panel.
 - Pruebas unitarias con PHPUnit e integración continua.
 
-## 12. Pagos en línea: Wompi y PSE (sandbox, dos pestañas)
+## 12. Pagos en línea: Wompi y PSE (dos pestañas)
+
+**Modo por defecto: `enlace_demo`.** Al pulsar *Pagar* se crea el pedido, se abre en una pestaña nueva la página
+configurada en `pagos.enlaces_demo` (Wompi: `https://login.wompi.co/`, PSE: `https://registro.pse.com.co/PSEUserRegister/`)
+y la pestaña de la tienda muestra la espera y el comprobante. Como no hay cobro ni verificación, el pedido queda
+**«DEMO NO VERIFICADA»** (nunca «PAGADO»). Es el modo pensado para hostings gratuitos como InfinityFree, que no pueden
+conectarse a la API de Wompi. Para la integración real descrita abajo, ponga `'modo' => 'sandbox'` en `config.local.php`.
 
 La tienda **no** implementa una pasarela propia ni formularios que imiten a Wompi o PSE:
 
@@ -311,6 +317,7 @@ reintentar reutiliza el mismo pedido y, si sigue vigente, el mismo intento de pa
         'secreto_integridad' => 'test_integrity_…',
         'secreto_eventos'    => 'test_events_…',
     ],
+    'modo'          => 'sandbox',                 // integración real (por defecto: 'enlace_demo')
     'pse_proveedor' => 'wompi',                   // habilita PSE
     'url_publica'   => 'https://xxxx.ngrok-free.app/tienda_ropa',
 ],

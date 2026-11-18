@@ -10,7 +10,10 @@ return [
     // 'base_url' => '/tienda_ropa',
 
     // Pagos en línea con Wompi (SÓLO llaves de PRUEBAS de https://comercios.wompi.co)
+    // Por defecto los pagos en línea funcionan en 'enlace_demo' (abren login.wompi.co / registro.pse.com.co
+    // sin cobro). Para la integración real con el sandbox de Wompi descomente y use 'modo' => 'sandbox':
     // 'pagos' => [
+    //     'modo' => 'sandbox',
     //     'wompi' => [
     //         'llave_publica'      => 'pub_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     //         'llave_privada'      => 'prv_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',

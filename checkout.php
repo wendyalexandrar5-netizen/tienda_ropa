@@ -88,7 +88,7 @@ if (es_post() && post_texto('accion', 20) === 'revisar') {
     // Pagos en línea: el método debe estar configurado; PSE exige además los datos que pide la API de Wompi.
     if (es_metodo_en_linea($datos['metodo_pago']) && ($problema = problema_metodo($datos['metodo_pago'])) !== null) {
         $v->agregar('metodo_pago', $problema);
-    } elseif ($datos['metodo_pago'] === 'pse') {
+    } elseif ($datos['metodo_pago'] === 'pse' && !pagos_modo_demo()) {
         $pseForm = pse_datos_formulario();
         if ($pseForm['error'] !== null) {
             $v->agregar('metodo_pago', $pseForm['error']);
@@ -179,7 +179,13 @@ require __DIR__ . '/includes/header.php';
 
                 <h2 class="h5 fw-bold mt-4 mb-3">Método de pago</h2>
                 <?php
-                $descripciones = [
+                $demo = pagos_modo_demo();
+                $descripciones = $demo ? [
+                    'contra_entrega' => 'Pagas en efectivo cuando recibes el pedido.',
+                    'pedido_prueba'  => 'Genera un pedido de demostración sin cobro real.',
+                    'wompi'          => 'Al pulsar «Pagar» se abre la página de Wompi en una pestaña nueva y aquí verás tu comprobante (demostración, sin cobro).',
+                    'pse'            => 'Al pulsar «Pagar» se abre la página de PSE en una pestaña nueva y aquí verás tu comprobante (demostración, sin cobro).',
+                ] : [
                     'contra_entrega' => 'Pagas en efectivo cuando recibes el pedido.',
                     'pedido_prueba'  => 'Genera un pedido de demostración sin cobro real.',
                     'wompi'          => 'Al pulsar «Pagar» se abre el checkout real de Wompi (ambiente de pruebas) en una pestaña nueva.',
@@ -281,8 +287,9 @@ require __DIR__ . '/includes/header.php';
             <?php if (es_metodo_en_linea($d['metodo_pago'])): $tokenCompra = (string) $d['token']; ?>
                 <div class="alert alert-light border mt-4 small mb-3">
                     <i class="bi bi-window-stack me-1"></i>Al pulsar <strong>Pagar</strong> se abrirá
-                    <?= $d['metodo_pago'] === 'pse' ? 'el flujo <strong>PSE</strong> de tu banco (a través de Wompi)' : 'el <strong>checkout de Wompi</strong>' ?>
-                    en una <strong>pestaña nueva</strong>, y esta pestaña mostrará tu comprobante. Ambiente de <strong>pruebas</strong>: no se realizan cobros reales.
+                    <?= pagos_modo_demo() ? ($d['metodo_pago'] === 'pse' ? 'la página de <strong>PSE</strong>' : 'la página de <strong>Wompi</strong>')
+                        : ($d['metodo_pago'] === 'pse' ? 'el flujo <strong>PSE</strong> de tu banco (a través de Wompi)' : 'el <strong>checkout de Wompi</strong>') ?>
+                    en una <strong>pestaña nueva</strong>, y esta pestaña mostrará tu comprobante. <?= pagos_modo_demo() ? '<strong>Modo demostración</strong>: no se realiza ningún cobro.' : 'Ambiente de <strong>pruebas</strong>: no se realizan cobros reales.' ?>
                 </div>
                 <form method="post" action="<?= url('pago_iniciar.php') ?>" id="form-pago-en-linea" data-dos-pestanas
                       data-comprobante-url="<?= e(url('pago_comprobante.php', ['token' => $tokenCompra])) ?>"

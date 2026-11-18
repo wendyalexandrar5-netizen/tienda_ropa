@@ -25,8 +25,8 @@ const TRANSICIONES_PEDIDO = [
 const METODOS_PAGO = [
     'contra_entrega' => 'Pago contra entrega',
     'pedido_prueba'  => 'Pedido de prueba (sin pago)',
-    'wompi'          => 'Wompi (sandbox): tarjeta, Nequi, Bancolombia…',
-    'pse'            => 'PSE: débito desde tu cuenta (vía Wompi, sandbox)',
+    'wompi'          => 'Wompi: tarjeta, Nequi, Bancolombia…',
+    'pse'            => 'PSE: débito desde tu cuenta bancaria',
 ];
 
 function estado_pedido_badge(string $estado): string

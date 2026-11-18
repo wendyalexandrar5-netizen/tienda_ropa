@@ -59,6 +59,15 @@ $config = [
         ],
         // Proveedor que procesa PSE. Vacío = PSE deshabilitado (se informa al cliente).
         // 'wompi' = PSE a través de la API de Wompi (requiere las llaves anteriores).
+        // 'enlace_demo': «Pagar» abre en otra pestaña las páginas indicadas en 'enlaces_demo' (sin cobro
+        //                ni verificación; el pedido queda como DEMO NO VERIFICADA). Útil en hostings
+        //                gratuitos que no pueden conectarse a la API de Wompi.
+        // 'sandbox':     integración real con el ambiente de pruebas de Wompi (requiere las llaves de abajo).
+        'modo' => 'enlace_demo',
+        'enlaces_demo' => [
+            'wompi' => 'https://login.wompi.co/',
+            'pse'   => 'https://registro.pse.com.co/PSEUserRegister/',
+        ],
         'pse_proveedor' => '',
         // URL pública absoluta de la tienda (p. ej. un túnel https://xxxx.ngrok-free.app/tienda_ropa)
         // para la URL de retorno y el webhook. Vacío = se usa la URL con la que se navega.

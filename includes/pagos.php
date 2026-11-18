@@ -35,6 +35,19 @@ const PSE_TIPOS_PERSONA = [0 => 'Persona natural', 1 => 'Persona jurídica'];
 const PSE_TIPOS_DOCUMENTO = ['CC' => 'Cédula de ciudadanía', 'CE' => 'Cédula de extranjería', 'NIT' => 'NIT',
                              'PP' => 'Pasaporte', 'TI' => 'Tarjeta de identidad'];
 
+/** ¿Los pagos en línea funcionan como enlaces de demostración (sin cobro ni verificación)? */
+function pagos_modo_demo(): bool
+{
+    return (config_pagos()['modo'] ?? 'sandbox') === 'enlace_demo';
+}
+
+/** URL de demostración configurada para el método (sólo https). */
+function url_demo_pago(string $metodo): ?string
+{
+    $u = trim((string) (config_pagos()['enlaces_demo'][$metodo] ?? ''));
+    return preg_match('#^https://[^\s<>"]+$#i', $u) ? $u : null;
+}
+
 function es_metodo_en_linea(?string $metodo): bool
 {
     return in_array($metodo, METODOS_EN_LINEA, true);
@@ -84,6 +97,9 @@ function wompi_configurado(): bool
 /** Mensaje para el cliente si PSE no puede usarse; null si está disponible. */
 function pse_problema(): ?string
 {
+    if (pagos_modo_demo()) {
+        return url_demo_pago('pse') ? null : 'Falta configurar el enlace de demostración de PSE.';
+    }
     $proveedor = (string) (config_pagos()['pse_proveedor'] ?? '');
     if ($proveedor === '') {
         return 'PSE no está disponible: la tienda necesita configurar un proveedor compatible con PSE (por ejemplo, Wompi).';
@@ -100,6 +116,9 @@ function pse_problema(): ?string
 /** Disponibilidad de cada método en línea: null = disponible, string = motivo. */
 function problema_metodo(string $metodo): ?string
 {
+    if (pagos_modo_demo() && es_metodo_en_linea($metodo)) {
+        return url_demo_pago($metodo) ? null : 'Falta configurar el enlace de demostración de este método.';
+    }
     if ($metodo === 'wompi') {
         return wompi_configurado() ? null : 'Wompi no está configurado en esta tienda (faltan las llaves de pruebas).';
     }
@@ -448,7 +467,7 @@ function actualizar_estado_pago_pedido(int $pedidoId, string $estadoWompi, strin
  */
 function verificar_pago(array $pago, ?string $idCandidato = null, bool $forzar = false): array
 {
-    if (!wompi_configurado() || in_array($pago['estado'], ['APPROVED', 'DECLINED', 'VOIDED', 'ERROR'], true) && !$forzar) {
+    if (pagos_modo_demo() || !wompi_configurado() || in_array($pago['estado'], ['APPROVED', 'DECLINED', 'VOIDED', 'ERROR'], true) && !$forzar) {
         return $pago;
     }
     $intervalo = max(2, (int) (config_pagos()['intervalo_consulta'] ?? 6));
@@ -525,7 +544,12 @@ function info_estado_pago(array $pedido): array
         return ['clave' => 'contra_entrega', 'etiqueta' => 'PAGO CONTRA ENTREGA', 'color' => 'secondary', 'icono' => 'bi-cash-coin',
                 'mensaje' => 'El pago se realiza en efectivo al recibir el pedido.', 'final' => true];
     }
-    $clave = $pedido['estado_pago'] === 'no_aplica' ? 'pendiente' : $pedido['estado_pago'];
+    if ($pedido['estado_pago'] === 'no_aplica') {
+        // Pago en línea en modo demostración: se abrió la página externa, pero no hubo cobro ni verificación.
+        return ['clave' => 'demo', 'etiqueta' => 'DEMO NO VERIFICADA', 'color' => 'secondary', 'icono' => 'bi-cone-striped',
+                'mensaje' => 'Tu solicitud de pago fue recibida. Modo demostración: no se realizó ni se verificó ningún cobro.', 'final' => true];
+    }
+    $clave = $pedido['estado_pago'];
     [$etiqueta, $color, $icono] = ESTADOS_PAGO[$clave] ?? ESTADOS_PAGO['pendiente'];
     $mensaje = [
         'aprobado'  => '¡Pago confirmado exitosamente!',
@@ -553,6 +577,9 @@ function estado_pago_badge(array $pedido): string
 function pse_datos_formulario(): array
 {
     $vacio = ['bancos' => [], 'terminos_url' => '', 'datos_url' => '', 'error' => null];
+    if (pagos_modo_demo()) {
+        return ['error' => problema_metodo('pse')] + $vacio;   // en demostración no se piden bancos
+    }
     if (($p = pse_problema()) !== null) {
         return ['error' => $p] + $vacio;
     }

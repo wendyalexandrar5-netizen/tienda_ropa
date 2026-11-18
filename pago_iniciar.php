@@ -73,6 +73,18 @@ if ($pedido['estado'] === 'cancelado') {
 //  - transacción ya iniciada en el proveedor que sigue pendiente (p. ej. PSE en el banco).
 // Sólo se crea un intento nuevo cuando el anterior terminó sin éxito (rechazado, anulado, error) o venció.
 $pago = pago_actual((int) $pedido['id']);
+if (pagos_modo_demo()) {
+    // Modo demostración: se abre la página configurada; el pedido queda «DEMO NO VERIFICADA».
+    if (!$pago || !$pago['url_pago']) {
+        $pago = crear_intento_pago($pedido, $pedido['metodo_pago']);
+        consulta('UPDATE pagos SET url_pago = ?, mensaje = ? WHERE id = ?',
+            [url_demo_pago($pedido['metodo_pago']), 'Modo demostración: enlace externo, sin cobro ni verificación.', $pago['id']]);
+        consulta("UPDATE pedidos SET estado_pago = 'no_aplica' WHERE id = ?", [$pedido['id']]);
+        $pago = fila('SELECT * FROM pagos WHERE id = ?', [$pago['id']]);
+    }
+    header('Location: ' . url('pago_ir.php', ['ref' => $pago['referencia']]), true, 303);
+    exit;
+}
 $reutilizable = $pago && $pago['url_pago'] && (
     ($pago['estado'] === 'CREADO' && strtotime((string) $pago['fecha_creacion']) > time() - 1800)
     || ($pago['estado'] === 'PENDING' && $pago['transaccion_id'] !== null)

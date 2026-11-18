@@ -667,7 +667,28 @@ prueba('No se puede consultar el comprobante de otro cliente', str_contains($pg-
 $pg->get('pago_comprobante.php?pedido=' . $pedidoAjeno);
 prueba('Comprobante de pedido ajeno → 404', $pg->codigo === 404);
 
-if (!wompi_configurado()) {
+if (pagos_modo_demo()) {
+    $pg->get('checkout.php');
+    prueba('Modo demostración: Wompi y PSE habilitados', preg_match('/id="mp-wompi"[^>]*disabled/', $pg->html) === 0 && preg_match('/id="mp-pse"[^>]*disabled/', $pg->html) === 0);
+    $pg->post('checkout.php', $entregaPago + ['metodo_pago' => 'pse']);
+    $pg->get('checkout.php?paso=resumen');
+    preg_match('/name="token" value="([a-f0-9]{32})"/', $pg->html, $m);
+    $tokenPago = $m[1] ?? '';
+    prueba('Resumen con formulario de dos pestañas', $tokenPago !== '' && $pg->contiene('data-dos-pestanas') && $pg->contiene('Modo demostración'));
+    $pg->post('pago_iniciar.php', ['token' => $tokenPago, 'modo' => 'dos_pestanas']);
+    $destino = $pg->ubicacion;
+    $pg->get('checkout.php');
+    $pg->post('pago_iniciar.php', ['token' => $tokenPago, 'modo' => 'dos_pestanas']);
+    $pedidoPago = fila('SELECT * FROM pedidos WHERE token_checkout = ?', [$tokenPago]);
+    prueba('Se crea UN pedido aunque se pulse «Pagar» dos veces', (int) valor('SELECT COUNT(*) FROM pedidos') === $pedidosAntes + 1
+        && (int) valor('SELECT COUNT(*) FROM pagos WHERE pedido_id = ?', [$pedidoPago['id']]) === 1);
+    $pg->get(substr($destino, strpos($destino, 'pago_ir.php')));
+    prueba('La pestaña de pago lleva a la URL configurada de PSE', $pg->contiene('https://registro.pse.com.co/PSEUserRegister/'));
+    $pg->get('pago_estado.php?token=' . $tokenPago);
+    prueba('Comprobante: DEMO NO VERIFICADA, nunca PAGADO', str_contains($pg->html, 'DEMO NO VERIFICADA') && !str_contains($pg->html, '"PAGADO"')
+        && str_contains($pg->html, $pedidoPago['codigo']));
+    prueba('El pedido no queda aprobado', $pedidoPago['estado_pago'] === 'no_aplica' && $pedidoPago['estado'] === 'pendiente');
+} elseif (!wompi_configurado()) {
     $pg->get('checkout.php');
     prueba('Sin llaves de Wompi, los métodos en línea aparecen deshabilitados con el motivo', $pg->contiene('id="mp-wompi"') && preg_match('/id="mp-wompi"[^>]*disabled/', $pg->html) === 1
         && $pg->contiene('PSE no está disponible: la tienda necesita configurar un proveedor compatible con PSE'));
