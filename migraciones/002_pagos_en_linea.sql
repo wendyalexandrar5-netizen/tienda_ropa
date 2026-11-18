@@ -2,9 +2,9 @@
 --  Migración: pagos en línea (Wompi sandbox: Web Checkout y PSE)
 --  Úsala SÓLO si ya tienes la base `tienda_ropa` con datos propios y no quieres
 --  volver a importar database.sql. Es segura de ejecutar más de una vez (MariaDB 10.4+).
---  phpMyAdmin → base tienda_ropa → pestaña SQL (o Importar) → ejecutar este archivo.
+--  phpMyAdmin → SELECCIONA tu base (tienda_ropa en XAMPP, if0_…_tienda en InfinityFree)
+--  → pestaña Importar (o SQL) → ejecutar este archivo. No contiene USE a propósito.
 -- =============================================================================
-USE tienda_ropa;
 
 ALTER TABLE pedidos
     MODIFY metodo_pago ENUM('contra_entrega','pedido_prueba','wompi','pse') NOT NULL DEFAULT 'contra_entrega',
