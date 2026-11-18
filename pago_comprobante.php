@@ -138,9 +138,7 @@ require __DIR__ . '/includes/header.php';
                         </table>
                     </div>
                 </div>
-                <p class="small text-muted-fc mt-3 mb-0"><i class="bi bi-shield-check me-1"></i><?= pagos_modo_demo()
-                    ? 'Modo demostración: la página externa se abre sólo como referencia; no se realiza ni se verifica ningún cobro.'
-                    : 'El estado del pago se confirma únicamente con la respuesta verificada de Wompi (notificación firmada o consulta del servidor). Ambiente de pruebas: no se realizan cobros reales.' ?></p>
+                <?php if (!pagos_modo_demo()): ?><p class="small text-muted-fc mt-3 mb-0"><i class="bi bi-shield-check me-1"></i>El estado del pago se confirma únicamente con la respuesta verificada de Wompi (notificación firmada o consulta del servidor). Ambiente de pruebas: no se realizan cobros reales.</p><?php endif; ?>
             </div>
         </div>
     </div>

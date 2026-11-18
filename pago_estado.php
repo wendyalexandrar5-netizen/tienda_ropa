@@ -66,16 +66,16 @@ $responder([
     ],
     'pago' => $info + [
         'en_linea'        => es_metodo_en_linea($pedido['metodo_pago']),
-        'proveedor'       => $pagoMostrar ? ($pedido['estado_pago'] === 'no_aplica'
-            ? ($pagoMostrar['metodo'] === 'pse' ? 'PSE (enlace de demostración)' : 'Wompi (enlace de demostración)')
+        'proveedor'       => $pagoMostrar ? (pagos_modo_demo()
+            ? ($pagoMostrar['metodo'] === 'pse' ? 'PSE' : 'Wompi')
             : ($pagoMostrar['metodo'] === 'pse' ? 'PSE vía Wompi' : 'Wompi Web Checkout')) : null,
-        'ambiente'        => $pagoMostrar ? ($pedido['estado_pago'] === 'no_aplica' ? 'Demostración: sin cobro ni verificación' : 'Sandbox de Wompi (pruebas, sin dinero real)') : null,
+        'ambiente'        => $pagoMostrar && !pagos_modo_demo() ? 'Sandbox de Wompi (pruebas, sin dinero real)' : null,
         'referencia'      => $pagoMostrar['referencia'] ?? null,
         'transaccion_id'  => $pagoMostrar['transaccion_id'] ?? null,
         'medio'           => $pagoMostrar['medio_wompi'] ?? null,
         'banco'           => $pagoMostrar['banco_pse'] ?? null,
         'detalle'         => $pagoMostrar['mensaje'] ?? null,
-        'verificado_en'   => !empty($pagoMostrar['verificado_en']) ? fecha($pagoMostrar['verificado_en']) . ' (' . ($pagoMostrar['fuente_verificacion'] === 'webhook' ? 'notificación firmada de Wompi' : 'consulta del servidor a Wompi') . ')' : null,
+        'verificado_en'   => !empty($pagoMostrar['verificado_en']) && !pagos_modo_demo() ? fecha($pagoMostrar['verificado_en']) . ' (' . ($pagoMostrar['fuente_verificacion'] === 'webhook' ? 'notificación firmada de Wompi' : 'consulta del servidor a Wompi') . ')' : null,
         'intentos'        => $pago ? (int) valor('SELECT COUNT(*) FROM pagos WHERE pedido_id = ?', [$pedido['id']]) : 0,
     ],
     'acciones' => [

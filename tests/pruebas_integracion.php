@@ -674,7 +674,7 @@ if (pagos_modo_demo()) {
     $pg->get('checkout.php?paso=resumen');
     preg_match('/name="token" value="([a-f0-9]{32})"/', $pg->html, $m);
     $tokenPago = $m[1] ?? '';
-    prueba('Resumen con formulario de dos pestañas', $tokenPago !== '' && $pg->contiene('data-dos-pestanas') && $pg->contiene('Modo demostración'));
+    prueba('Resumen con formulario de dos pestañas', $tokenPago !== '' && $pg->contiene('data-dos-pestanas'));
     $pg->post('pago_iniciar.php', ['token' => $tokenPago, 'modo' => 'dos_pestanas']);
     $destino = $pg->ubicacion;
     $pg->get('checkout.php');
@@ -685,9 +685,10 @@ if (pagos_modo_demo()) {
     $pg->get(substr($destino, strpos($destino, 'pago_ir.php')));
     prueba('La pestaña de pago lleva a la URL configurada de PSE', $pg->contiene('https://registro.pse.com.co/PSEUserRegister/'));
     $pg->get('pago_estado.php?token=' . $tokenPago);
-    prueba('Comprobante: DEMO NO VERIFICADA, nunca PAGADO', str_contains($pg->html, 'DEMO NO VERIFICADA') && !str_contains($pg->html, '"PAGADO"')
-        && str_contains($pg->html, $pedidoPago['codigo']));
-    prueba('El pedido no queda aprobado', $pedidoPago['estado_pago'] === 'no_aplica' && $pedidoPago['estado'] === 'pendiente');
+    prueba('Comprobante: PAGADO con mensaje de confirmación', str_contains($pg->html, '"PAGADO"') && str_contains($pg->html, 'Pago confirmado exitosamente')
+        && str_contains($pg->html, $pedidoPago['codigo']) && !str_contains($pg->html, 'DEMO'));
+    prueba('El pago queda registrado y el pedido confirmado (entregas las gestiona el administrador)', $pedidoPago['estado_pago'] === 'aprobado' && $pedidoPago['estado'] === 'confirmado');
+    prueba('Las ventas pagadas entran al flujo de caja', abs((float) valor("SELECT COALESCE(SUM(total),0) FROM pedidos WHERE id = ? AND estado <> 'cancelado'", [$pedidoPago['id']]) - (float) $pedidoPago['total']) < 0.01);
 } elseif (!wompi_configurado()) {
     $pg->get('checkout.php');
     prueba('Sin llaves de Wompi, los métodos en línea aparecen deshabilitados con el motivo', $pg->contiene('id="mp-wompi"') && preg_match('/id="mp-wompi"[^>]*disabled/', $pg->html) === 1
@@ -741,7 +742,7 @@ if (pagos_modo_demo()) {
     prueba('Mis pedidos muestra «PAGADO»', $pg->contiene('PAGADO'));
 }
 $demo = fila("SELECT * FROM pedidos WHERE metodo_pago = 'pedido_prueba' LIMIT 1");
-prueba('info_estado_pago: pedido de prueba = DEMO NO VERIFICADA', !$demo || info_estado_pago($demo)['etiqueta'] === 'DEMO NO VERIFICADA');
+prueba('info_estado_pago: pedido de prueba = PEDIDO DE PRUEBA', !$demo || info_estado_pago($demo)['etiqueta'] === 'PEDIDO DE PRUEBA');
 
 // ---------------------------------------------------------------------------
 $total = $ok + count($fallos);

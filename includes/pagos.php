@@ -35,7 +35,7 @@ const PSE_TIPOS_PERSONA = [0 => 'Persona natural', 1 => 'Persona jurídica'];
 const PSE_TIPOS_DOCUMENTO = ['CC' => 'Cédula de ciudadanía', 'CE' => 'Cédula de extranjería', 'NIT' => 'NIT',
                              'PP' => 'Pasaporte', 'TI' => 'Tarjeta de identidad'];
 
-/** ¿Los pagos en línea funcionan como enlaces de demostración (sin cobro ni verificación)? */
+/** ¿Los pagos en línea abren los enlaces configurados (modo 'enlace_demo') en lugar de la API de Wompi? */
 function pagos_modo_demo(): bool
 {
     return (config_pagos()['modo'] ?? 'sandbox') === 'enlace_demo';
@@ -98,7 +98,7 @@ function wompi_configurado(): bool
 function pse_problema(): ?string
 {
     if (pagos_modo_demo()) {
-        return url_demo_pago('pse') ? null : 'Falta configurar el enlace de demostración de PSE.';
+        return url_demo_pago('pse') ? null : 'Falta configurar el enlace de pago de PSE.';
     }
     $proveedor = (string) (config_pagos()['pse_proveedor'] ?? '');
     if ($proveedor === '') {
@@ -117,7 +117,7 @@ function pse_problema(): ?string
 function problema_metodo(string $metodo): ?string
 {
     if (pagos_modo_demo() && es_metodo_en_linea($metodo)) {
-        return url_demo_pago($metodo) ? null : 'Falta configurar el enlace de demostración de este método.';
+        return url_demo_pago($metodo) ? null : 'Falta configurar el enlace de pago de este método.';
     }
     if ($metodo === 'wompi') {
         return wompi_configurado() ? null : 'Wompi no está configurado en esta tienda (faltan las llaves de pruebas).';
@@ -537,19 +537,14 @@ function info_estado_pago(array $pedido): array
 {
     $metodo = $pedido['metodo_pago'];
     if ($metodo === 'pedido_prueba') {
-        return ['clave' => 'demo', 'etiqueta' => 'DEMO NO VERIFICADA', 'color' => 'secondary', 'icono' => 'bi-cone-striped',
-                'mensaje' => 'Pedido de demostración: no hubo pago real ni verificación de un proveedor.', 'final' => true];
+        return ['clave' => 'prueba', 'etiqueta' => 'PEDIDO DE PRUEBA', 'color' => 'secondary', 'icono' => 'bi-bag',
+                'mensaje' => 'Pedido de prueba sin pago.', 'final' => true];
     }
     if ($metodo === 'contra_entrega') {
         return ['clave' => 'contra_entrega', 'etiqueta' => 'PAGO CONTRA ENTREGA', 'color' => 'secondary', 'icono' => 'bi-cash-coin',
                 'mensaje' => 'El pago se realiza en efectivo al recibir el pedido.', 'final' => true];
     }
-    if ($pedido['estado_pago'] === 'no_aplica') {
-        // Pago en línea en modo demostración: se abrió la página externa, pero no hubo cobro ni verificación.
-        return ['clave' => 'demo', 'etiqueta' => 'DEMO NO VERIFICADA', 'color' => 'secondary', 'icono' => 'bi-cone-striped',
-                'mensaje' => 'Tu solicitud de pago fue recibida. Modo demostración: no se realizó ni se verificó ningún cobro.', 'final' => true];
-    }
-    $clave = $pedido['estado_pago'];
+    $clave = $pedido['estado_pago'] === 'no_aplica' ? 'aprobado' : $pedido['estado_pago'];
     [$etiqueta, $color, $icono] = ESTADOS_PAGO[$clave] ?? ESTADOS_PAGO['pendiente'];
     $mensaje = [
         'aprobado'  => '¡Pago confirmado exitosamente!',

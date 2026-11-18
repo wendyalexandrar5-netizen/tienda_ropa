@@ -182,9 +182,9 @@ require __DIR__ . '/includes/header.php';
                 $demo = pagos_modo_demo();
                 $descripciones = $demo ? [
                     'contra_entrega' => 'Pagas en efectivo cuando recibes el pedido.',
-                    'pedido_prueba'  => 'Genera un pedido de demostración sin cobro real.',
-                    'wompi'          => 'Al pulsar «Pagar» se abre la página de Wompi en una pestaña nueva y aquí verás tu comprobante (demostración, sin cobro).',
-                    'pse'            => 'Al pulsar «Pagar» se abre la página de PSE en una pestaña nueva y aquí verás tu comprobante (demostración, sin cobro).',
+                    'pedido_prueba'  => 'Genera un pedido de prueba sin pago.',
+                    'wompi'          => 'Al pulsar «Pagar» se abre Wompi en una pestaña nueva y aquí verás tu comprobante.',
+                    'pse'            => 'Al pulsar «Pagar» se abre PSE en una pestaña nueva y aquí verás tu comprobante.',
                 ] : [
                     'contra_entrega' => 'Pagas en efectivo cuando recibes el pedido.',
                     'pedido_prueba'  => 'Genera un pedido de demostración sin cobro real.',
@@ -287,9 +287,9 @@ require __DIR__ . '/includes/header.php';
             <?php if (es_metodo_en_linea($d['metodo_pago'])): $tokenCompra = (string) $d['token']; ?>
                 <div class="alert alert-light border mt-4 small mb-3">
                     <i class="bi bi-window-stack me-1"></i>Al pulsar <strong>Pagar</strong> se abrirá
-                    <?= pagos_modo_demo() ? ($d['metodo_pago'] === 'pse' ? 'la página de <strong>PSE</strong>' : 'la página de <strong>Wompi</strong>')
+                    <?= pagos_modo_demo() ? ($d['metodo_pago'] === 'pse' ? '<strong>PSE</strong>' : '<strong>Wompi</strong>')
                         : ($d['metodo_pago'] === 'pse' ? 'el flujo <strong>PSE</strong> de tu banco (a través de Wompi)' : 'el <strong>checkout de Wompi</strong>') ?>
-                    en una <strong>pestaña nueva</strong>, y esta pestaña mostrará tu comprobante. <?= pagos_modo_demo() ? '<strong>Modo demostración</strong>: no se realiza ningún cobro.' : 'Ambiente de <strong>pruebas</strong>: no se realizan cobros reales.' ?>
+                    en una <strong>pestaña nueva</strong>, y esta pestaña mostrará tu comprobante.<?= pagos_modo_demo() ? '' : ' Ambiente de <strong>pruebas</strong>: no se realizan cobros reales.' ?>
                 </div>
                 <form method="post" action="<?= url('pago_iniciar.php') ?>" id="form-pago-en-linea" data-dos-pestanas
                       data-comprobante-url="<?= e(url('pago_comprobante.php', ['token' => $tokenCompra])) ?>"

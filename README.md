@@ -274,8 +274,9 @@ Los datos de demostración incluyen ~3 meses de historia: 208 pedidos (FC-000001
 
 **Modo por defecto: `enlace_demo`.** Al pulsar *Pagar* se crea el pedido, se abre en una pestaña nueva la página
 configurada en `pagos.enlaces_demo` (Wompi: `https://login.wompi.co/`, PSE: `https://registro.pse.com.co/PSEUserRegister/`)
-y la pestaña de la tienda muestra la espera y el comprobante. Como no hay cobro ni verificación, el pedido queda
-**«DEMO NO VERIFICADA»** (nunca «PAGADO»). Es el modo pensado para hostings gratuitos como InfinityFree, que no pueden
+y la pestaña de la tienda muestra la espera y el comprobante. El pago queda registrado como **PAGADO** y el pedido como
+*Confirmado* (flujo de caja); los estados siguientes (preparado, enviado, entregado) los actualiza el administrador.
+Es el modo pensado para hostings gratuitos como InfinityFree, que no pueden
 conectarse a la API de Wompi. Para la integración real descrita abajo, ponga `'modo' => 'sandbox'` en `config.local.php`.
 
 La tienda **no** implementa una pasarela propia ni formularios que imiten a Wompi o PSE:

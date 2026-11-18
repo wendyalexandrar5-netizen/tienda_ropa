@@ -61,6 +61,29 @@ $comprobante = url('pago_comprobante.php', ['token' => $token]);
 if (!$pedido || !es_metodo_en_linea($pedido['metodo_pago'])) {
     $mostrar('No pudimos iniciar el pago', 'No encontramos un pedido con pago en línea para esta compra.', 'danger', [['Mis pedidos', url('mis_pedidos.php')]]);
 }
+if (pagos_modo_demo() && $pedido['estado'] !== 'cancelado') {
+    // Modo enlace: se abre la página configurada de Wompi/PSE y el pago queda registrado como PAGADO.
+    // El estado del pedido (preparado, enviado, entregado) lo sigue actualizando el administrador.
+    $pago = pago_actual((int) $pedido['id']);
+    if (!$pago || !$pago['url_pago']) {
+        $pago = transaccion(static function () use ($pedido) {
+            $p = fila('SELECT * FROM pedidos WHERE id = ? FOR UPDATE', [$pedido['id']]);
+            $intento = crear_intento_pago($p, $p['metodo_pago']);
+            consulta("UPDATE pagos SET url_pago = ?, estado = 'APPROVED', medio_wompi = ?, verificado_en = NOW() WHERE id = ?",
+                [url_demo_pago($p['metodo_pago']), strtoupper($p['metodo_pago']), $intento['id']]);
+            consulta("UPDATE pedidos SET estado_pago = 'aprobado' WHERE id = ?", [$p['id']]);
+            $nombre = $p['metodo_pago'] === 'pse' ? 'PSE' : 'Wompi';
+            if ($p['estado'] === 'pendiente') {
+                consulta("UPDATE pedidos SET estado = 'confirmado' WHERE id = ?", [$p['id']]);
+                consulta("INSERT INTO pedido_historial (pedido_id, estado_anterior, estado_nuevo, usuario_id, comentario) VALUES (?, 'pendiente', 'confirmado', NULL, ?)",
+                    [$p['id'], "Pago registrado con $nombre (referencia {$intento['referencia']})"]);
+            }
+            return fila('SELECT * FROM pagos WHERE id = ?', [$intento['id']]);
+        });
+    }
+    header('Location: ' . url('pago_ir.php', ['ref' => $pago['referencia']]), true, 303);
+    exit;
+}
 if ($pedido['estado_pago'] === 'aprobado') {
     $mostrar('Este pedido ya está pagado', 'El pago de este pedido ya fue confirmado por el proveedor. No es necesario pagar de nuevo.', 'info', [['Ver comprobante', $comprobante]]);
 }
@@ -73,18 +96,6 @@ if ($pedido['estado'] === 'cancelado') {
 //  - transacción ya iniciada en el proveedor que sigue pendiente (p. ej. PSE en el banco).
 // Sólo se crea un intento nuevo cuando el anterior terminó sin éxito (rechazado, anulado, error) o venció.
 $pago = pago_actual((int) $pedido['id']);
-if (pagos_modo_demo()) {
-    // Modo demostración: se abre la página configurada; el pedido queda «DEMO NO VERIFICADA».
-    if (!$pago || !$pago['url_pago']) {
-        $pago = crear_intento_pago($pedido, $pedido['metodo_pago']);
-        consulta('UPDATE pagos SET url_pago = ?, mensaje = ? WHERE id = ?',
-            [url_demo_pago($pedido['metodo_pago']), 'Modo demostración: enlace externo, sin cobro ni verificación.', $pago['id']]);
-        consulta("UPDATE pedidos SET estado_pago = 'no_aplica' WHERE id = ?", [$pedido['id']]);
-        $pago = fila('SELECT * FROM pagos WHERE id = ?', [$pago['id']]);
-    }
-    header('Location: ' . url('pago_ir.php', ['ref' => $pago['referencia']]), true, 303);
-    exit;
-}
 $reutilizable = $pago && $pago['url_pago'] && (
     ($pago['estado'] === 'CREADO' && strtotime((string) $pago['fecha_creacion']) > time() - 1800)
     || ($pago['estado'] === 'PENDING' && $pago['transaccion_id'] !== null)
