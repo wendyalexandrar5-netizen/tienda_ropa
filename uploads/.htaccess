@@ -1,17 +1,6 @@
-# Las imágenes subidas NUNCA se ejecutan como código.
-# (Reglas compatibles con hostings compartidos: sólo directivas permitidas habitualmente.)
+# Carpeta de imágenes subidas: sin listado y sin ejecutar código.
+# Sólo directivas que también usa el .htaccess principal (compatibles con InfinityFree).
 Options -Indexes
-<IfModule mod_php.c>
-    php_flag engine off
-</IfModule>
-<IfModule mod_mime.c>
-    RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .pht .phps .cgi .pl .py .sh
-    RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .pht .phps
-</IfModule>
-# Sólo se permiten imágenes; cualquier otro archivo se bloquea.
 <FilesMatch "\.(?i:php\d?|phtml|phar|pht|phps|cgi|pl|py|sh|htaccess|html?|svg|js)$">
     Require all denied
 </FilesMatch>
-<IfModule mod_headers.c>
-    Header always set X-Content-Type-Options "nosniff"
-</IfModule>
