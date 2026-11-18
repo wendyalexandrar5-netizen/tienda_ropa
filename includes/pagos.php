@@ -144,7 +144,7 @@ function http_json(string $metodo, string $url, ?array $cuerpo = null, array $ca
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $metodo, CURLOPT_HTTPHEADER => $cabeceras,
-            CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => min(5, $timeout), CURLOPT_FOLLOWLOCATION => false,
         ]);
         if ($datos !== null) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $datos);
@@ -173,7 +173,7 @@ function http_json(string $metodo, string $url, ?array $cuerpo = null, array $ca
  * Llama a la API de Wompi. $llave: null (sin autenticación), 'publica' o 'privada'.
  * @return array el campo "data" de la respuesta
  */
-function wompi_api(string $metodo, string $ruta, ?array $cuerpo = null, ?string $llave = null): array
+function wompi_api(string $metodo, string $ruta, ?array $cuerpo = null, ?string $llave = null, int $timeout = 12): array
 {
     $c = wompi_cfg();
     $cabeceras = [];
@@ -184,7 +184,7 @@ function wompi_api(string $metodo, string $ruta, ?array $cuerpo = null, ?string 
         }
         $cabeceras[] = 'Authorization: Bearer ' . $valor;
     }
-    [$codigo, $json] = http_json($metodo, rtrim((string) $c['api_url'], '/') . $ruta, $cuerpo, $cabeceras);
+    [$codigo, $json] = http_json($metodo, rtrim((string) $c['api_url'], '/') . $ruta, $cuerpo, $cabeceras, $timeout);
     if ($codigo < 200 || $codigo >= 300 || !is_array($json) || !array_key_exists('data', $json)) {
         $detalle = is_array($json) ? json_encode($json['error'] ?? $json, JSON_UNESCAPED_UNICODE) : 'respuesta vacía';
         registrar_log("Wompi $metodo $ruta → HTTP $codigo: " . mb_substr((string) $detalle, 0, 500), 'pagos.log');
@@ -213,13 +213,13 @@ function cache_escribir(string $clave, array $datos): void
 }
 
 /** Datos del comercio: tokens de aceptación (términos y tratamiento de datos) requeridos por la API. */
-function wompi_comercio(): array
+function wompi_comercio(int $timeout = 12): array
 {
     $clave = 'wompi_comercio_' . substr(hash('sha256', (string) (wompi_cfg()['llave_publica'] ?? '')), 0, 12);
     if ($c = cache_leer($clave, 600)) {
         return $c;
     }
-    $d = wompi_api('GET', '/merchants/' . rawurlencode((string) wompi_cfg()['llave_publica']));
+    $d = wompi_api('GET', '/merchants/' . rawurlencode((string) wompi_cfg()['llave_publica']), null, null, $timeout);
     $r = [
         'nombre'                => (string) ($d['name'] ?? ''),
         'acceptance_token'      => (string) ($d['presigned_acceptance']['acceptance_token'] ?? ''),
@@ -235,13 +235,13 @@ function wompi_comercio(): array
 }
 
 /** Lista de bancos PSE reportada por Wompi: [código => nombre]. */
-function wompi_bancos_pse(): array
+function wompi_bancos_pse(int $timeout = 12): array
 {
     if ($c = cache_leer('wompi_bancos_pse', 3600)) {
         return $c;
     }
     $bancos = [];
-    foreach (wompi_api('GET', '/pse/financial_institutions', null, 'publica') as $b) {
+    foreach (wompi_api('GET', '/pse/financial_institutions', null, 'publica', $timeout) as $b) {
         $cod = (string) ($b['financial_institution_code'] ?? '');
         if ($cod !== '' && $cod !== '0') {
             $bancos[$cod] = (string) ($b['financial_institution_name'] ?? $cod);
@@ -560,9 +560,10 @@ function pse_datos_formulario(): array
         return ['error' => 'No fue posible contactar a Wompi para cargar los bancos PSE. Intenta de nuevo en un minuto.'] + $vacio;
     }
     try {
-        $comercio = wompi_comercio();
-        return ['bancos' => wompi_bancos_pse(), 'terminos_url' => $comercio['terminos_url'], 'datos_url' => $comercio['datos_url'], 'error' => null];
-    } catch (RuntimeException $e) {
+        // Tiempos cortos: si el hosting no alcanza a Wompi, la página de checkout no debe quedarse esperando.
+        $comercio = wompi_comercio(5);
+        return ['bancos' => wompi_bancos_pse(5), 'terminos_url' => $comercio['terminos_url'], 'datos_url' => $comercio['datos_url'], 'error' => null];
+    } catch (Throwable $e) {
         cache_escribir('wompi_fallo_reciente', ['t' => time()]);
         registrar_log('Formulario PSE: ' . $e->getMessage(), 'pagos.log');
         return ['error' => 'No fue posible contactar a Wompi para cargar los bancos PSE. Intenta de nuevo en un minuto.'] + $vacio;
