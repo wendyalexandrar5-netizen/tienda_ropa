@@ -61,11 +61,13 @@ function subir_imagen(?array $archivo, string $carpeta): ?string
     }
 
     if (extension_loaded('gd') && recodificar_imagen($archivo['tmp_name'], $mime, $destino)) {
+        @chmod($destino, 0644);   // legible por el servidor web (en hostings compartidos puede quedar 0600)
         return $relativa;
     }
     if (!move_uploaded_file($archivo['tmp_name'], $destino)) {
         throw new DomainException('No se pudo guardar la imagen en el servidor.');
     }
+    @chmod($destino, 0644);
     return $relativa;
 }
 

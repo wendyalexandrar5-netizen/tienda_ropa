@@ -35,10 +35,67 @@ const PSE_TIPOS_PERSONA = [0 => 'Persona natural', 1 => 'Persona jurídica'];
 const PSE_TIPOS_DOCUMENTO = ['CC' => 'Cédula de ciudadanía', 'CE' => 'Cédula de extranjería', 'NIT' => 'NIT',
                              'PP' => 'Pasaporte', 'TI' => 'Tarjeta de identidad'];
 
+/**
+ * Crea (una sola vez) las columnas y tablas de pagos si la base de datos aún no las tiene:
+ * así un hosting donde no se ejecutó migraciones/002_pagos_en_linea.sql sigue funcionando.
+ * El resultado se recuerda en storage/cache para no consultar el esquema en cada petición.
+ */
+function asegurar_esquema_pagos(): void
+{
+    if (cache_leer('esquema_pagos_v1', 86400 * 365)) {
+        return;
+    }
+    try {
+        $col = static fn(string $c): bool => (bool) valor("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pedidos' AND COLUMN_NAME = ?", [$c]);
+        $tabla = static fn(string $t): bool => (bool) valor('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?', [$t]);
+        $tipo = (string) valor("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pedidos' AND COLUMN_NAME = 'metodo_pago'");
+        if ($tipo !== '' && strpos($tipo, "'pse'") === false) {
+            consulta("ALTER TABLE pedidos MODIFY metodo_pago ENUM('contra_entrega','pedido_prueba','wompi','pse') NOT NULL DEFAULT 'contra_entrega'");
+        }
+        if (!$col('estado_pago')) {
+            consulta("ALTER TABLE pedidos ADD COLUMN estado_pago ENUM('no_aplica','pendiente','aprobado','rechazado','anulado','error') NOT NULL DEFAULT 'no_aplica' AFTER metodo_pago");
+        }
+        if (!$col('token_checkout')) {
+            consulta('ALTER TABLE pedidos ADD COLUMN token_checkout CHAR(32) NULL AFTER estado_pago, ADD UNIQUE KEY uq_pedidos_token_checkout (token_checkout)');
+        }
+        if (!$tabla('pagos')) {
+            consulta("CREATE TABLE pagos (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT, pedido_id INT UNSIGNED NOT NULL,
+                proveedor ENUM('wompi') NOT NULL DEFAULT 'wompi', metodo ENUM('wompi','pse') NOT NULL,
+                ambiente ENUM('sandbox') NOT NULL DEFAULT 'sandbox', referencia VARCHAR(60) NOT NULL,
+                monto_centavos BIGINT UNSIGNED NOT NULL, moneda CHAR(3) NOT NULL DEFAULT 'COP',
+                estado ENUM('CREADO','PENDING','APPROVED','DECLINED','VOIDED','ERROR') NOT NULL DEFAULT 'CREADO',
+                transaccion_id VARCHAR(64) NULL, medio_wompi VARCHAR(40) NULL, banco_pse VARCHAR(120) NULL,
+                url_pago VARCHAR(1500) NULL, mensaje VARCHAR(255) NULL, verificado_en DATETIME NULL,
+                fuente_verificacion ENUM('webhook','api') NULL, ultima_consulta DATETIME NULL,
+                fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                fecha_actualizacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id), UNIQUE KEY uq_pagos_referencia (referencia), UNIQUE KEY uq_pagos_transaccion (transaccion_id),
+                KEY idx_pagos_pedido (pedido_id, id),
+                CONSTRAINT fk_pagos_pedido FOREIGN KEY (pedido_id) REFERENCES pedidos (id) ON DELETE CASCADE ON UPDATE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        }
+        if (!$tabla('pagos_eventos')) {
+            consulta("CREATE TABLE pagos_eventos (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT, pago_id INT UNSIGNED NULL, proveedor VARCHAR(20) NOT NULL DEFAULT 'wompi',
+                tipo_evento VARCHAR(60) NULL, transaccion_id VARCHAR(64) NULL, estado VARCHAR(20) NULL,
+                firma_valida TINYINT(1) NOT NULL DEFAULT 0, resultado VARCHAR(255) NULL, payload MEDIUMTEXT NULL,
+                ip VARCHAR(45) NULL, fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id), KEY idx_pagos_eventos_pago (pago_id),
+                CONSTRAINT fk_pagos_eventos_pago FOREIGN KEY (pago_id) REFERENCES pagos (id) ON DELETE SET NULL ON UPDATE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        }
+        cache_escribir('esquema_pagos_v1', ['ok' => true, 'fecha' => date('c')]);
+    } catch (Throwable $e) {
+        registrar_log('No se pudo preparar el esquema de pagos: ' . $e->getMessage(), 'app.log');
+    }
+}
+
 /** ¿Los pagos en línea abren los enlaces configurados (modo 'enlace_demo') en lugar de la API de Wompi? */
 function pagos_modo_demo(): bool
 {
-    return (config_pagos()['modo'] ?? 'sandbox') === 'enlace_demo';
+    // Si config.php no define el modo (versión antigua en el servidor), se usan los enlaces.
+    return (config_pagos()['modo'] ?? 'enlace_demo') === 'enlace_demo';
 }
 
 /** URL de demostración configurada para el método (sólo https). */

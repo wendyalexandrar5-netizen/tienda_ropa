@@ -34,6 +34,7 @@ require_once __DIR__ . '/subidas.php';
 configurar_errores();
 
 require_once __DIR__ . '/pagos.php';
+asegurar_esquema_pagos();
 
 // Los endpoints de máquina a máquina (webhooks del proveedor de pagos) definen
 // SIN_SESION antes de incluir este archivo: no usan cookies ni token CSRF porque
