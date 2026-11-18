@@ -64,23 +64,7 @@ if (!$pedido || !es_metodo_en_linea($pedido['metodo_pago'])) {
 if (pagos_modo_demo() && $pedido['estado'] !== 'cancelado') {
     // Modo enlace: se abre la página configurada de Wompi/PSE y el pago queda registrado como PAGADO.
     // El estado del pedido (preparado, enviado, entregado) lo sigue actualizando el administrador.
-    $pago = pago_actual((int) $pedido['id']);
-    if (!$pago || !$pago['url_pago']) {
-        $pago = transaccion(static function () use ($pedido) {
-            $p = fila('SELECT * FROM pedidos WHERE id = ? FOR UPDATE', [$pedido['id']]);
-            $intento = crear_intento_pago($p, $p['metodo_pago']);
-            consulta("UPDATE pagos SET url_pago = ?, estado = 'APPROVED', medio_wompi = ?, verificado_en = NOW() WHERE id = ?",
-                [url_demo_pago($p['metodo_pago']), strtoupper($p['metodo_pago']), $intento['id']]);
-            consulta("UPDATE pedidos SET estado_pago = 'aprobado' WHERE id = ?", [$p['id']]);
-            $nombre = $p['metodo_pago'] === 'pse' ? 'PSE' : 'Wompi';
-            if ($p['estado'] === 'pendiente') {
-                consulta("UPDATE pedidos SET estado = 'confirmado' WHERE id = ?", [$p['id']]);
-                consulta("INSERT INTO pedido_historial (pedido_id, estado_anterior, estado_nuevo, usuario_id, comentario) VALUES (?, 'pendiente', 'confirmado', NULL, ?)",
-                    [$p['id'], "Pago registrado con $nombre (referencia {$intento['referencia']})"]);
-            }
-            return fila('SELECT * FROM pagos WHERE id = ?', [$intento['id']]);
-        });
-    }
+    $pago = registrar_pago_enlace($pedido);
     header('Location: ' . url('pago_ir.php', ['ref' => $pago['referencia']]), true, 303);
     exit;
 }

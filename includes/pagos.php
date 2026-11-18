@@ -91,6 +91,31 @@ function asegurar_esquema_pagos(): void
     }
 }
 
+/**
+ * Modo enlace: registra el pago del pedido como PAGADO (abre la página configurada de Wompi/PSE).
+ * El pedido pasa a «confirmado»; los estados siguientes los actualiza el administrador.
+ */
+function registrar_pago_enlace(array $pedido): array
+{
+    return transaccion(static function () use ($pedido) {
+        $p = fila('SELECT * FROM pedidos WHERE id = ? FOR UPDATE', [$pedido['id']]);
+        if ($p['estado_pago'] === 'aprobado' && ($ultimo = pago_actual((int) $p['id'])) && $ultimo['url_pago']) {
+            return $ultimo;
+        }
+        $intento = crear_intento_pago($p, $p['metodo_pago']);
+        consulta("UPDATE pagos SET url_pago = ?, estado = 'APPROVED', medio_wompi = ?, verificado_en = NOW(), mensaje = NULL WHERE id = ?",
+            [url_demo_pago($p['metodo_pago']), strtoupper($p['metodo_pago']), $intento['id']]);
+        consulta("UPDATE pedidos SET estado_pago = 'aprobado' WHERE id = ?", [$p['id']]);
+        $nombre = $p['metodo_pago'] === 'pse' ? 'PSE' : 'Wompi';
+        if ($p['estado'] === 'pendiente') {
+            consulta("UPDATE pedidos SET estado = 'confirmado' WHERE id = ?", [$p['id']]);
+            consulta("INSERT INTO pedido_historial (pedido_id, estado_anterior, estado_nuevo, usuario_id, comentario) VALUES (?, 'pendiente', 'confirmado', NULL, ?)",
+                [$p['id'], "Pago registrado con $nombre (referencia {$intento['referencia']})"]);
+        }
+        return fila('SELECT * FROM pagos WHERE id = ?', [$intento['id']]);
+    });
+}
+
 /** ¿Los pagos en línea abren los enlaces configurados (modo 'enlace_demo') en lugar de la API de Wompi? */
 function pagos_modo_demo(): bool
 {
@@ -110,9 +135,25 @@ function es_metodo_en_linea(?string $metodo): bool
     return in_array($metodo, METODOS_EN_LINEA, true);
 }
 
+/** Valores por defecto en el código: la tienda funciona aunque el config.php del servidor sea antiguo. */
+const PAGOS_POR_DEFECTO = [
+    'modo' => 'enlace_demo',
+    'enlaces_demo' => [
+        'wompi' => 'https://login.wompi.co/',
+        'pse'   => 'https://registro.pse.com.co/PSEUserRegister/',
+    ],
+    'wompi' => [
+        'llave_publica' => '', 'llave_privada' => '', 'secreto_integridad' => '', 'secreto_eventos' => '',
+        'checkout_url' => 'https://checkout.wompi.co/p/', 'api_url' => 'https://sandbox.wompi.co/v1',
+    ],
+    'pse_proveedor' => '',
+    'url_publica' => '',
+    'intervalo_consulta' => 6,
+];
+
 function config_pagos(): array
 {
-    return (array) config('pagos', []);
+    return array_replace_recursive(PAGOS_POR_DEFECTO, (array) config('pagos', []));
 }
 
 function wompi_cfg(): array

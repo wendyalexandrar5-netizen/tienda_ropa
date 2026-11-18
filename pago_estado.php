@@ -31,7 +31,11 @@ if (!$pedido) {
 }
 
 $pago = es_metodo_en_linea($pedido['metodo_pago']) ? pago_actual((int) $pedido['id']) : null;
-if ($pago && $pedido['estado_pago'] === 'pendiente') {
+if (pagos_modo_demo() && es_metodo_en_linea($pedido['metodo_pago']) && $pedido['estado_pago'] !== 'aprobado' && $pedido['estado'] !== 'cancelado') {
+    // Pedidos que quedaron pendientes (p. ej. de intentos anteriores): en modo enlace se registran como pagados.
+    $pago = registrar_pago_enlace($pedido);
+    $pedido = fila('SELECT * FROM pedidos WHERE id = ?', [$pedido['id']]);
+} elseif ($pago && $pedido['estado_pago'] === 'pendiente') {
     $pago = verificar_pago($pago);
     $pedido = fila('SELECT * FROM pedidos WHERE id = ?', [$pedido['id']]);
 }
